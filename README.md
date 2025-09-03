@@ -13,15 +13,3 @@ access-control-skeleton/
   infra/              # docker-compose + reverse-proxy (пример)
   docs/               # протокол, контракты API
 ```
-
-## Быстрый старт
-1. Установите Docker и Docker Compose.
-2. Скопируйте `backend/.env.example` в `backend/.env` и задайте переменные.
-3. Запустите:
-   ```bash
-   cd infra
-   docker compose up --build
-   ```
-4. Бэкенд будет доступен на `http://localhost:8000/` (в dev‑режиме).
-
-Подробнее — см. `docs/` и `backend/README.md`.
