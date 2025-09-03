@@ -1,0 +1,26 @@
+
+version: "3.9"
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: access
+      POSTGRES_USER: access
+      POSTGRES_PASSWORD: accesspass
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  backend:
+    build: ../backend
+    env_file:
+      - ../backend/.env
+    depends_on:
+      - db
+    ports:
+      - "8000:8000"
+    command: python manage.py runserver 0.0.0.0:8000
+
+volumes:
+  dbdata:
