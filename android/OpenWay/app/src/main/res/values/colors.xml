@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="inf_card">#F3F3F6</color>
-    <color name="nfc_button_on">#F3F3F6</color>
+    <color name="light_nfc_button_on">#F3F3F6</color>
+    <color name="nfc_button_on">#3CCE42</color>
+    <color name="dark_theme">#1F1F1F</color>
 </resources>

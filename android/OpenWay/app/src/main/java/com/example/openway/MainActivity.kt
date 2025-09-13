@@ -3,11 +3,13 @@ package com.example.openway
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,7 +20,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,6 +28,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -43,9 +45,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -58,27 +60,69 @@ class MainActivity : ComponentActivity() {
 
 
 @Composable
-fun MainScreen ( ) {
+fun MainScreen () {
+    var flagIcButton by remember { mutableStateOf(false) } // переменная состояния кнопки светлого/темного режима
+
+    val box_color by animateColorAsState( // переменная плавного перехода цвета
+        targetValue = if (flagIcButton) {
+            colorResource(R.color.dark_theme)
+        } else {
+            Color.White
+        },
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy, // амортизация для плавного перехода
+            stiffness = Spring.StiffnessLow // жесткость перехода
+        )
+    )
+
     Box ( // главный контейнер
         modifier = Modifier
             .fillMaxSize() // занимает весь экран
             .background(Color.White) // цвет
             .systemBarsPadding() // отступы от статусбара (то есть верхней системы!)
-            .background(Color.White) // светло-серый
+            .background(box_color) // в переменной все написанно
     ) {
-        Text( // текст (надо будет поставить иконку палитры цветов!)
-            text = "Иконка",
-            modifier = Modifier // модификатооры
-                .align(Alignment.TopEnd) // ставим в правый верхний угол
+        Content(flagIcButton)
+
+        PhotoIconToggleButton(
+            flagIcButton = flagIcButton,
+            onIcButton = {flagIcButton = !flagIcButton},
+            modifier = Modifier
+                .align (Alignment.TopEnd) // ставим в правый верхний угол
                 .padding(12.dp) // отступ от угла
         )
+    }
+}
 
-        Content()
+
+@Composable
+fun PhotoIconToggleButton (
+    flagIcButton: Boolean, // флаг состояния вкл/выкл
+    onIcButton: () -> Unit,
+    modifier: Modifier = Modifier // Модификатор
+    ) {
+    IconButton(
+        onClick = onIcButton, // переключение состояния
+        modifier = modifier.size(40.dp) // размер кнопки
+    ) {
+        Crossfade(
+            targetState = flagIcButton, // состояние
+            animationSpec = tween (durationMillis = 900) // время перехода изображения
+        ) { on -> // сотсояние
+            Image(
+                painter = painterResource(
+                    id = if (on) R.drawable.dark_theme else R.drawable.light_theme
+                ),
+                contentDescription = if (on) "Включенно" else "Выключено", // для слобовидящих(это строчка обязательно)
+                modifier = Modifier.size(40.dp), // размер изображения
+                contentScale = ContentScale.Crop // подгоняем изображения без искажений
+            )
+        }
     }
 }
 
 @Composable
-fun Content() {
+fun Content(flagTheme: Boolean) {
     Column ( // главный скрол, который лежит в MainScreen(главный контейнер)
         modifier = Modifier
             .fillMaxSize() // занимает весь экран
@@ -89,18 +133,18 @@ fun Content() {
     ) {
         Spacer(modifier = Modifier.height(250.dp)) // отступ
 
-        TextButtonText()
+        TextButtonText(flagTheme)
 
         Spacer(modifier = Modifier.height(150.dp))
 
-        AccSection()
+        AccSection(flagTheme)
     }
 }
 
 
 @Composable
-fun TextButtonText() {
-    var flag_button by remember { mutableStateOf(false) } // переменная состояния кнопки
+fun TextButtonText (flagTheme: Boolean) {
+    var flagNfcButton by remember { mutableStateOf(false) } // переменная состояния кнопки nfc
 
     Column (
         modifier = Modifier
@@ -110,53 +154,86 @@ fun TextButtonText() {
     ) {
         Text(
             text = "Нажмите, чтобы пройти",
-            color = Color.Black,
+            color = if (flagTheme) Color.White else Color.Black,
             fontSize = 20.sp
         )
 
         Spacer(modifier = Modifier.height(50.dp)) // отступ
 
-        NfcButton(flag = flag_button, onToggle = { flag_button = !flag_button })
+        NfcButton(
+            flagNfcButton = flagNfcButton,
+            flagTheme,
+            onNfcButton = { flagNfcButton = !flagNfcButton })
 
         Spacer(modifier = Modifier.height(30.dp)) // отступ
 
         Text(
-            text = if (flag_button) "NFC включен" else "NFC отключен",
-            color = Color.Black
+            text = if (flagNfcButton) "NFC включен" else "NFC отключен",
+            color = if (flagTheme) Color.White else Color.Black
         )
     }
 }
 
 
 @Composable
-fun NfcButton (flag: Boolean, onToggle: () -> Unit) {
-    val transition_color by animateColorAsState( // переменная плавного перехода цвета
-        targetValue = if (flag) Color.Green else colorResource(id = R.color.nfc_button_on),
-        animationSpec = tween (500) // время перехода
+fun NfcButton (flagNfcButton: Boolean, flagTheme: Boolean, onNfcButton: () -> Unit) {
+    var lastTheme by remember { mutableStateOf(flagTheme) }
+
+    val button_color by animateColorAsState( // переменная плавного перехода цвета
+        targetValue = if (flagNfcButton) {
+            colorResource(id = R.color.nfc_button_on)
+        } else {
+            if (flagTheme) {
+                Color.DarkGray
+            } else {
+                colorResource(id = R.color.light_nfc_button_on)
+            }
+        },
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy, // амортизация для плавного перехода
+            stiffness = Spring.StiffnessMediumLow // жесткость перехода
+        )
+    )
+
+    val image_color by animateColorAsState( // переменная плавного перехода цвета
+        targetValue = if (flagNfcButton) {
+            if (flagTheme) {
+                Color.Black
+            } else {
+                Color.White
+            }
+        } else {
+            if (flagTheme) {
+                Color.White
+            } else {
+                Color.Black
+            }
+        },
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy, // амортизация для плавного перехода
+            stiffness = Spring.StiffnessVeryLow // жесткость перехода
+        )
     )
 
     Button(
-        onClick = onToggle,// дейсвтие при нажатии
+        onClick = onNfcButton, // дейсвтие при нажатии
         modifier = Modifier.size(225.dp), // размер
         shape = CircleShape, // форма - круг
-        colors = ButtonDefaults.buttonColors( // цвет
-            containerColor = transition_color, // в переменной все написано
-            contentColor = if (flag) Color.White else Color.Black // текст
-        )
+        colors = ButtonDefaults.buttonColors(containerColor = button_color)
     ) {
         Image( // векторное изображение
             painter = painterResource(id = R.drawable.turn_on), // изображение в drawable
             contentDescription = null,
             modifier = Modifier.size(80.dp), // размер
-            colorFilter = ColorFilter.tint(if (flag) Color.White else Color.Black) // цвет
+            //colorFilter = ColorFilter.tint(if (flagNfcButton) Color.White else Color.Black) // цвет
+            colorFilter = ColorFilter.tint(image_color) // в переменной все написанно
         )
     }
-
 }
 
 
 @Composable
-fun AccSection() { // Функция Личного кабинета
+fun AccSection (flagTheme: Boolean) { // Функция Личного кабинета
 
     // Получаем контекст приложения для доступа к SharedPreferences
     val context = LocalContext.current
@@ -181,17 +258,28 @@ fun AccSection() { // Функция Личного кабинета
         )
     }
 
+    val card_color by animateColorAsState( // переменная плавного перехода цвета
+        targetValue = if (flagTheme) {
+            Color.DarkGray
+        } else {
+            colorResource(id = R.color.inf_card)
+        },
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy, // амортизация для плавного перехода
+            stiffness = Spring.StiffnessLow // жесткость перехода
+        )
+    )
+
     Column (
         modifier = Modifier
             .fillMaxWidth() // растягивается на всю ширину
             .padding(5.dp),
         horizontalAlignment = Alignment.CenterHorizontally, // выравнивание по центру по горизонтали
         verticalArrangement = Arrangement.Top, // элементы начинаются сверху
-
     ) {
         Text(
             text = "Личный кабинет",
-            color = Color.Black,
+            color = if (flagTheme) Color.White else Color.Black,
             fontSize = 20.sp
         )
 
@@ -200,10 +288,9 @@ fun AccSection() { // Функция Личного кабинета
         Image(
             contentDescription = "Аватарка",
             modifier = Modifier
-                .size(150.dp)
+                .size(155.dp)
                 .clip(CircleShape)
-                .background(Color.White)
-                .border(5.dp, colorResource(id = R.color.inf_card), CircleShape),
+                .background(Color.White),
             painter = painterResource(id = R.drawable.ic_launcher_background),
             contentScale = ContentScale.Crop,
         )
@@ -215,9 +302,7 @@ fun AccSection() { // Функция Личного кабинета
                 .fillMaxWidth() // растягиваем по ширине
                 .padding(vertical = 12.dp), // отступы по вертикале
             shape = RoundedCornerShape(12.dp), // закругление
-            colors = CardDefaults.cardColors(
-                colorResource(id = R.color.inf_card)
-            )
+            colors = CardDefaults.cardColors(card_color)
         ) {
             Column (
                 modifier = Modifier.padding(16.dp) // отступы
@@ -232,7 +317,7 @@ fun AccSection() { // Функция Личного кабинета
 
                 Text (
                     text = "${user.name} ${user.surname}",
-                    color = Color.Black,
+                    color = if (flagTheme) Color.White else Color.Black,
                     fontSize = 17.sp
                 )
             }
@@ -244,9 +329,7 @@ fun AccSection() { // Функция Личного кабинета
                 .fillMaxWidth() // растягиваем по ширине
                 .padding(vertical = 12.dp), // отступы по вертикале
             shape = RoundedCornerShape(12.dp), // закругление
-            colors = CardDefaults.cardColors(
-                colorResource(id = R.color.inf_card)
-            )
+            colors = CardDefaults.cardColors(card_color)
         ) {
             Column (
                 modifier = Modifier.padding(16.dp) // отступы
@@ -261,7 +344,7 @@ fun AccSection() { // Функция Личного кабинета
 
                 Text (
                     text = "${user.position}",
-                    color = Color.Black,
+                    color = if (flagTheme) Color.White else Color.Black,
                     fontSize = 17.sp
                 )
             }
@@ -273,9 +356,7 @@ fun AccSection() { // Функция Личного кабинета
                 .fillMaxWidth() // растягиваем по ширине
                 .padding(vertical = 12.dp), // отступы по вертикале
             shape = RoundedCornerShape(12.dp), // закругление
-            colors = CardDefaults.cardColors(
-                colorResource(id = R.color.inf_card)
-            )
+            colors = CardDefaults.cardColors(card_color)
         ) {
             Column (
                 modifier = Modifier.padding(16.dp) // отступы
@@ -290,14 +371,10 @@ fun AccSection() { // Функция Личного кабинета
 
                 Text (
                     text = "${user.login}",
-                    color = Color.Black,
+                    color = if (flagTheme) Color.White else Color.Black,
                     fontSize = 17.sp
                 )
             }
         }
     }
-}
-
-fun HisSection() {
-
 }
