@@ -4,4 +4,5 @@
     <color name="light_nfc_button_on">#F3F3F6</color>
     <color name="nfc_button_on">#3CCE42</color>
     <color name="dark_theme">#1F1F1F</color>
+    <color name="icons">#A4A4A9</color>
 </resources>

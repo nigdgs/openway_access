@@ -53,7 +53,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            MainScreen()
+            //MainScreen()
+            LoginScreen()
         }
     }
 }
@@ -61,10 +62,10 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun MainScreen () {
-    var flagIcButton by remember { mutableStateOf(false) } // переменная состояния кнопки светлого/темного режима
+    var flagTheme by remember { mutableStateOf(false) } // переменная состояния кнопки светлого/темного режима
 
     val box_color by animateColorAsState( // переменная плавного перехода цвета
-        targetValue = if (flagIcButton) {
+        targetValue = if (flagTheme) {
             colorResource(R.color.dark_theme)
         } else {
             Color.White
@@ -82,11 +83,11 @@ fun MainScreen () {
             .systemBarsPadding() // отступы от статусбара (то есть верхней системы!)
             .background(box_color) // в переменной все написанно
     ) {
-        Content(flagIcButton)
+        Content(flagTheme)
 
         PhotoIconToggleButton(
-            flagIcButton = flagIcButton,
-            onIcButton = {flagIcButton = !flagIcButton},
+            flagIcButton = flagTheme,
+            onIcButton = {flagTheme = !flagTheme},
             modifier = Modifier
                 .align (Alignment.TopEnd) // ставим в правый верхний угол
                 .padding(12.dp) // отступ от угла
@@ -100,7 +101,7 @@ fun PhotoIconToggleButton (
     flagIcButton: Boolean, // флаг состояния вкл/выкл
     onIcButton: () -> Unit,
     modifier: Modifier = Modifier // Модификатор
-    ) {
+) {
     IconButton(
         onClick = onIcButton, // переключение состояния
         modifier = modifier.size(40.dp) // размер кнопки
@@ -288,9 +289,9 @@ fun AccSection (flagTheme: Boolean) { // Функция Личного каби�
         Image(
             contentDescription = "Аватарка",
             modifier = Modifier
-                .size(155.dp)
+                .size(130.dp)
                 .clip(CircleShape)
-                .background(Color.White),
+                .background(card_color),
             painter = painterResource(id = R.drawable.ic_launcher_background),
             contentScale = ContentScale.Crop,
         )
