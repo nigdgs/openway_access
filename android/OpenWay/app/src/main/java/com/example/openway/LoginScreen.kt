@@ -19,6 +19,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -106,7 +107,12 @@ fun LoginScreen() {
                 modifier = Modifier
                     .fillMaxWidth() // растягиваем на все ширину
                     .padding(horizontal = 10.dp, vertical = 2.dp),
-                shape = RoundedCornerShape(13.dp) // cкругление
+                shape = RoundedCornerShape(13.dp), // cкругление
+
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Color.White, // активный цвет контура
+                    unfocusedBorderColor = Color.Gray, // не активный цвет контура
+                )
             )
 
             Spacer(Modifier.height(12.dp)) // отступ
@@ -167,7 +173,12 @@ fun LoginScreen() {
                 modifier = Modifier
                     .fillMaxWidth() // растягиваем на все ширину
                     .padding(horizontal = 10.dp, vertical = 2.dp),
-                shape = RoundedCornerShape(13.dp) // cкругление
+                shape = RoundedCornerShape(13.dp), // cкругление
+
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Color.White, // активный цвет контура
+                    unfocusedBorderColor = Color.Gray, // не активный цвет контура
+                )
             )
 
             Spacer(Modifier.height(20.dp))

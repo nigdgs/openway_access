@@ -31,7 +31,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -53,8 +52,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            //MainScreen()
-            LoginScreen()
+            MainScreen()
+            //LoginScreen()
         }
     }
 }
@@ -239,25 +238,6 @@ fun AccSection (flagTheme: Boolean) { // Функция Личного каби�
     // Получаем контекст приложения для доступа к SharedPreferences
     val context = LocalContext.current
 
-    // Создаем состояние для хранения данных пользователя
-    // remember сохраняет значение при перерисовке Composable
-    // mutableStateOf делает значение наблюдаемым для обновления UI
-    var user by remember { mutableStateOf (User(
-        "...", "...", "...", "...",)
-    ) }
-
-    // LaunchedEffect выполняет код при первом запуске Composable
-    // Unit означает, что эффект запустится только один раз
-    LaunchedEffect(Unit) {
-        // Закгружаем пользователя из хранилища
-        val betaUser = LoadUser(context)
-        user = betaUser ?: User (
-            name = "Андрей",
-            surname = "Арустамян",
-            position = "Глава вселенной",
-            login = "arustamayn"
-        )
-    }
 
     val card_color by animateColorAsState( // переменная плавного перехода цвета
         targetValue = if (flagTheme) {
@@ -317,7 +297,7 @@ fun AccSection (flagTheme: Boolean) { // Функция Личного каби�
                 Spacer(modifier = Modifier.height(5.dp)) // отступ
 
                 Text (
-                    text = "${user.name} ${user.surname}",
+                    text = "Андрей А",
                     color = if (flagTheme) Color.White else Color.Black,
                     fontSize = 17.sp
                 )
@@ -344,7 +324,7 @@ fun AccSection (flagTheme: Boolean) { // Функция Личного каби�
                 Spacer(modifier = Modifier.height(5.dp)) // отступ
 
                 Text (
-                    text = "${user.position}",
+                    text = "Бос",
                     color = if (flagTheme) Color.White else Color.Black,
                     fontSize = 17.sp
                 )
@@ -371,7 +351,7 @@ fun AccSection (flagTheme: Boolean) { // Функция Личного каби�
                 Spacer(modifier = Modifier.height(5.dp)) // отступ
 
                 Text (
-                    text = "${user.login}",
+                    text = "andrey",
                     color = if (flagTheme) Color.White else Color.Black,
                     fontSize = 17.sp
                 )
