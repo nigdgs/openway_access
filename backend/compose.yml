@@ -1,0 +1,32 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-nfc_access}
+      POSTGRES_USER: ${POSTGRES_USER:-nfc}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nfc}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nfc} -d ${POSTGRES_DB:-nfc_access}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    command: ["bash", "-lc", "./scripts/entrypoint.sh"]
+    volumes:
+      - ./:/app
+    ports:
+      - "8001:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+volumes:
+  db_data:
