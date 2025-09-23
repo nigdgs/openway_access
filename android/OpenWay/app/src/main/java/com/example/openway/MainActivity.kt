@@ -46,14 +46,32 @@ import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+
 
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
+            AppNav()
+        }
+    }
+}
+
+
+@Composable
+fun AppNav () {
+    val navController = rememberNavController()
+
+    NavHost(navController = navController, startDestination = "loginScreen") {
+        composable("loginScreen") {
+            LoginScreen(navController)
+        }
+        composable("mainScreen") {
             MainScreen()
-            //LoginScreen()
         }
     }
 }

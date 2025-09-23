@@ -38,11 +38,11 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.navigation.NavController
 
 
-@Preview(showBackground = true, showSystemUi = true)
 @Composable
-fun LoginScreen() {
+fun LoginScreen(navController: NavController) {
     // Состояния логина и пароля
     var login by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
@@ -161,8 +161,8 @@ fun LoginScreen() {
                     IconButton( onClick = { flagPassword = !flagPassword} ) {
                         Icon( // иконка глаза
                             painter = painterResource(
-                                id = if (flagPassword) R.drawable.eye
-                                else R.drawable.crossed_eye
+                                id = if (flagPassword) R.drawable.crossed_eye
+                                else R.drawable.eye
                             ),
                             contentDescription = "Показать/скрыть пароль",
                             tint = colorResource(R.color.icons)
@@ -185,7 +185,7 @@ fun LoginScreen() {
 
             Button(
                 onClick = {
-                    // надо добавить проверку
+                    navController.navigate("mainScreen") // проверка что навигация работает
                 },
                 modifier = Modifier
                     .fillMaxWidth() // кнопка на всю ширину
