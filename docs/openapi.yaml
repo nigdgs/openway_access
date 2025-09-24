@@ -1,0 +1,257 @@
+openapi: 3.1.0
+info:
+  title: OpenWay Access API
+  version: 0.2.0
+  description: |
+    API контракты мобильной системы доступа. Все ответы JSON, кодировка UTF-8.
+servers:
+  - url: http://localhost:8000
+    description: Docker compose (web внутри контейнера)
+  - url: http://localhost:8001
+    description: Docker compose (порт проброшен на хост)
+paths:
+  /health:
+    get:
+      summary: Проверка готовности
+      responses:
+        '200':
+          description: Приложение готово
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+  /api/v1/auth/token:
+    post:
+      summary: Получение DRF токена пользователя
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthTokenRequest'
+      responses:
+        '200':
+          description: Успешная авторизация
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokenResponse'
+        '400':
+          description: Неверные учетные данные
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/devices/register:
+    post:
+      summary: Регистрация/ротация устройства пользователя
+      security:
+        - TokenAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceRegisterRequest'
+      responses:
+        '200':
+          description: Токен устройства выдан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceRegisterResponse'
+        '401':
+          description: Нет токена пользователя
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/devices/me:
+    get:
+      summary: Список устройств пользователя
+      security:
+        - TokenAuth: []
+      responses:
+        '200':
+          description: Устройства найдены
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeviceMeItem'
+        '401':
+          description: Нет токена пользователя
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/devices/revoke:
+    post:
+      summary: Деактивация устройства
+      security:
+        - TokenAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceRevokeRequest'
+      responses:
+        '200':
+          description: Устройство деактивировано
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceRevokeResponse'
+        '401':
+          description: Нет токена пользователя
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Устройство не найдено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/access/verify:
+    post:
+      summary: Проверка токена устройства контроллером
+      description: Контроллер (ESP32) запрашивает решение доступа. Всегда отвечает 200 OK, решение в теле.
+      x-throttle-scope: access_verify
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyRequest'
+      responses:
+        '200':
+          description: Решение по проходу
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifyResponse'
+      callbacks: {}
+components:
+  securitySchemes:
+    TokenAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Используйте формат `Token <api_token>`
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ok
+      required: [status]
+    AuthTokenRequest:
+      type: object
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+      required: [username, password]
+    AuthTokenResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          example: 820a91cfb2...
+      required: [token]
+    ErrorResponse:
+      type: object
+      properties:
+        detail:
+          type: string
+      required: [detail]
+    DeviceRegisterRequest:
+      type: object
+      properties:
+        rotate:
+          type: boolean
+          default: true
+        android_device_id:
+          type: string
+          nullable: true
+          maxLength: 128
+      additionalProperties: false
+    DeviceRegisterResponse:
+      type: object
+      properties:
+        device_id:
+          type: integer
+        token:
+          type: string
+          description: Статический токен устройства (hex, 64 символа)
+        android_device_id:
+          type: string
+          nullable: true
+        qr_payload:
+          type: string
+      required: [device_id, token, qr_payload]
+    DeviceMeItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        android_device_id:
+          type: string
+        is_active:
+          type: boolean
+        token_preview:
+          type: string
+      required: [id, is_active, token_preview]
+    DeviceRevokeRequest:
+      type: object
+      properties:
+        device_id:
+          type: integer
+        android_device_id:
+          type: string
+      additionalProperties: false
+      description: Должно быть указано одно из полей
+    DeviceRevokeResponse:
+      type: object
+      properties:
+        device_id:
+          type: integer
+        is_active:
+          type: boolean
+      required: [device_id, is_active]
+    VerifyRequest:
+      type: object
+      properties:
+        gate_id:
+          type: string
+        token:
+          type: string
+      required: [gate_id, token]
+    VerifyResponse:
+      type: object
+      properties:
+        decision:
+          type: string
+          enum: [ALLOW, DENY]
+        reason:
+          type: string
+          enum:
+            - UNKNOWN_GATE
+            - TOKEN_INVALID
+            - DEVICE_NOT_FOUND
+            - DEVICE_INACTIVE
+            - NO_PERMISSION
+            - OK
+            - INVALID_REQUEST
+            - DEVICE_MISMATCH
+            - RATE_LIMIT
+        duration_ms:
+          type: integer
+          minimum: 0
+      required: [decision, reason]

@@ -2,7 +2,8 @@
 set -e
 
 # Load env (optional; docker-compose already passes them)
-export DJANGO_SETTINGS_MODULE=accessproj.settings.dev
+: "${DJANGO_SETTINGS_MODULE:=accessproj.settings.dev}"
+export DJANGO_SETTINGS_MODULE
 
 ./scripts/wait-for-db.sh
 

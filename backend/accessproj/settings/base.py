@@ -96,6 +96,7 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_THROTTLE_RATES": {
         "access_verify": os.environ.get("ACCESS_VERIFY_RATE", "30/second"),
+        "access_verify_wifi": os.environ.get("ACCESS_VERIFY_WIFI_RATE", os.environ.get("ACCESS_VERIFY_RATE", "30/second")),
         "user": "1000/day",
         "anon": "100/day",
     },

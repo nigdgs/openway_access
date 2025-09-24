@@ -12,4 +12,5 @@ urlpatterns = [
 urlpatterns += [
     path("api/v1/access/verify", AccessVerifyView.as_view(), name="access-verify"),
     path("health", health, name="health"),
+    path("healthz", health, name="healthz"),
 ]

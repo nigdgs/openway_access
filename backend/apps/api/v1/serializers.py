@@ -5,6 +5,20 @@ class VerifyRequestSerializer(serializers.Serializer):
     gate_id = serializers.CharField()
     token = serializers.CharField()
 
+    def validate(self, attrs):
+        gate = (attrs.get("gate_id") or "").strip().lower()
+        tok = (attrs.get("token") or "").strip()
+        errors = {}
+        if not gate:
+            errors["gate_id"] = "This field is required."
+        if not tok:
+            errors["token"] = "This field is required."
+        if errors:
+            raise serializers.ValidationError(errors)
+        attrs["gate_id"] = gate
+        attrs["token"] = tok
+        return attrs
+
 class VerifyResponseSerializer(serializers.Serializer):
     decision = serializers.ChoiceField(choices=list(DECISIONS))
     duration_ms = serializers.IntegerField(required=False, min_value=0)

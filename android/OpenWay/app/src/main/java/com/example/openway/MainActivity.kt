@@ -1,8 +1,12 @@
 package com.example.openway
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
+import com.example.openway.di.ServiceProvider
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
@@ -57,6 +61,12 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             AppNav()
+        }
+        // Инициализация дефолтов контроллера
+        val pass = ServiceProvider.passService(applicationContext)
+        lifecycleScope.launch {
+            pass.setEspIp(BuildConfig.ESP_IP)
+            pass.setGateId(BuildConfig.GATE_ID)
         }
     }
 }
@@ -195,6 +205,7 @@ fun TextButtonText (flagTheme: Boolean) {
 
 @Composable
 fun NfcButton (flagNfcButton: Boolean, flagTheme: Boolean, onNfcButton: () -> Unit) {
+    val context = LocalContext.current
     var lastTheme by remember { mutableStateOf(flagTheme) }
 
     val button_color by animateColorAsState( // переменная плавного перехода цвета
@@ -234,7 +245,16 @@ fun NfcButton (flagNfcButton: Boolean, flagTheme: Boolean, onNfcButton: () -> Un
     )
 
     Button(
-        onClick = onNfcButton, // дейсвтие при нажатии
+        onClick = {
+            onNfcButton() // переключаем состояние NFC
+            // Вызываем Wi-Fi проход (прямой режим для эмулятора)
+            val pass = ServiceProvider.passService(context.applicationContext)
+            (context as? ComponentActivity)?.lifecycleScope?.launch {
+                val res = pass.pass(debug = BuildConfig.DEBUG, directBackendBase = "http://10.0.2.2:8001")
+                val (decision, reason) = res.getOrNull()?.let { it.decision to it.reason } ?: ("DENY" to "UNKNOWN")
+                Toast.makeText(context, "$decision / $reason", Toast.LENGTH_SHORT).show()
+            }
+        },
         modifier = Modifier.size(225.dp), // размер
         shape = CircleShape, // форма - круг
         colors = ButtonDefaults.buttonColors(containerColor = button_color)

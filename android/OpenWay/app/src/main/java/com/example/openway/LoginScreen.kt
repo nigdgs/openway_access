@@ -1,8 +1,10 @@
 package com.example.openway
 
-
-
 import androidx.compose.foundation.background
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import com.example.openway.di.ServiceProvider
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -43,6 +45,9 @@ import androidx.navigation.NavController
 
 @Composable
 fun LoginScreen(navController: NavController) {
+    val ctx = LocalContext.current
+    val pass = remember { ServiceProvider.passService(ctx.applicationContext) }
+    
     // Состояния логина и пароля
     var login by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
@@ -185,6 +190,16 @@ fun LoginScreen(navController: NavController) {
 
             Button(
                 onClick = {
+                    // TODO: Здесь должна быть реальная регистрация устройства через /devices/register
+                    // После успешной регистрации сохраняем токен:
+                    // LaunchedEffect(response.token) {
+                    //     pass.setDeviceToken(response.token)
+                    // }
+                    
+                    // Временный токен для демонстрации
+                    val demoToken = "demo_token_${System.currentTimeMillis()}"
+                    pass.setDeviceToken(demoToken)
+                    
                     navController.navigate("mainScreen") // проверка что навигация работает
                 },
                 modifier = Modifier
