@@ -5,4 +5,6 @@
     <color name="nfc_button_on">#3CCE42</color>
     <color name="dark_theme">#1F1F1F</color>
     <color name="icons">#A4A4A9</color>
+    <color name="exit_button_light_theme">#F29191</color>
+    <color name="exit_text_dark_theme">#A01919</color>
 </resources>

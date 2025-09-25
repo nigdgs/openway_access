@@ -13,13 +13,16 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -28,6 +31,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Divider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -44,8 +49,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -63,22 +70,23 @@ class MainActivity : ComponentActivity() {
 
 
 @Composable
-fun AppNav () {
+fun AppNav() {
     val navController = rememberNavController()
 
-    NavHost(navController = navController, startDestination = "loginScreen") {
+    NavHost(navController = navController, startDestination = "mainScreen") {
         composable("loginScreen") {
-            LoginScreen(navController)
+            LoginScreen(navController)  // Экран авторизации
         }
         composable("mainScreen") {
-            MainScreen()
+            MainScreen(navController)  // Главный экран
         }
     }
 }
 
 
+
 @Composable
-fun MainScreen () {
+fun MainScreen (navController: NavController) {
     var flagTheme by remember { mutableStateOf(false) } // переменная состояния кнопки светлого/темного режима
 
     val box_color by animateColorAsState( // переменная плавного перехода цвета
@@ -100,7 +108,7 @@ fun MainScreen () {
             .systemBarsPadding() // отступы от статусбара (то есть верхней системы!)
             .background(box_color) // в переменной все написанно
     ) {
-        Content(flagTheme)
+        Content(flagTheme, navController)
 
         PhotoIconToggleButton(
             flagIcButton = flagTheme,
@@ -140,7 +148,8 @@ fun PhotoIconToggleButton (
 }
 
 @Composable
-fun Content(flagTheme: Boolean) {
+fun Content(flagTheme: Boolean, navController: NavController) {
+
     Column ( // главный скрол, который лежит в MainScreen(главный контейнер)
         modifier = Modifier
             .fillMaxSize() // занимает весь экран
@@ -155,7 +164,11 @@ fun Content(flagTheme: Boolean) {
 
         Spacer(modifier = Modifier.height(150.dp))
 
-        AccSection(flagTheme)
+        AccSection(flagTheme, navController)
+
+        Spacer(modifier = Modifier.height(190.dp)) // отступ
+
+        SwitchAccHistory()
     }
 }
 
@@ -251,7 +264,7 @@ fun NfcButton (flagNfcButton: Boolean, flagTheme: Boolean, onNfcButton: () -> Un
 
 
 @Composable
-fun AccSection (flagTheme: Boolean) { // Функция Личного кабинета
+fun AccSection (flagTheme: Boolean, navController: NavController) { // Функция Личного кабинета
 
     // Получаем контекст приложения для доступа к SharedPreferences
     val context = LocalContext.current
@@ -315,7 +328,7 @@ fun AccSection (flagTheme: Boolean) { // Функция Личного каби�
                 Spacer(modifier = Modifier.height(5.dp)) // отступ
 
                 Text (
-                    text = "Андрей А",
+                    text = "Андрей Арустамян",
                     color = if (flagTheme) Color.White else Color.Black,
                     fontSize = 17.sp
                 )
@@ -342,7 +355,7 @@ fun AccSection (flagTheme: Boolean) { // Функция Личного каби�
                 Spacer(modifier = Modifier.height(5.dp)) // отступ
 
                 Text (
-                    text = "Бос",
+                    text = "Генеральный директор",
                     color = if (flagTheme) Color.White else Color.Black,
                     fontSize = 17.sp
                 )
@@ -371,7 +384,146 @@ fun AccSection (flagTheme: Boolean) { // Функция Личного каби�
                 Text (
                     text = "andrey",
                     color = if (flagTheme) Color.White else Color.Black,
-                    fontSize = 17.sp
+                    fontSize = 15.sp
+                )
+            }
+        }
+
+        exitAcc(navController)
+
+    }
+}
+
+
+@Composable
+fun exitAcc (navController: NavController) {
+    Button(
+        onClick = {
+            navController.navigate("LoginScreen")
+        }, // пока что без логики
+        modifier = Modifier
+            .fillMaxWidth() // Кнопка занимает всю ширину
+            .padding(16.dp), // Отступы вокруг кнопки
+        shape = RoundedCornerShape(12.dp), // Закругленные углы
+        colors = ButtonDefaults.buttonColors(colorResource(R.color.exit_button_light_theme))
+
+    ) {
+        // Используем Row для горизонтального расположения иконки и текста
+        Row(
+            verticalAlignment = Alignment.CenterVertically, // Центрируем иконку и текст по вертикали
+            horizontalArrangement = Arrangement.Start // Располагаем элементы слева
+        ) {
+            Icon(
+                painter = painterResource(id = R.drawable.exit), // Иконка для выхода (поставь свою иконку)
+                contentDescription = "Выйти из аккаунта", // Описание для доступности
+                modifier = Modifier.size(20.dp), // Размер иконки
+                tint = Color.Red// Цвет иконки
+            )
+            Spacer(modifier = Modifier.width(8.dp)) // Отступ между иконкой и текстом
+            Text(
+                text = "Выйти из аккаунта", // Текст кнопки
+                color = Color.Red, // Цвет текста
+                fontSize = 16.sp // размер текста
+            )
+        }
+    }
+}
+
+
+
+
+@Composable
+fun SwitchAccHistory () {
+
+    var activeIcon by remember { mutableStateOf("profile") } // Изначально активен "Профиль"
+
+    //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    // Нудно будет пересоздать activeIcon в другом месте, что хранить его состояние не здесь
+    //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth() // Занимаем всю ширину экрана
+    ) {
+        // Горизонтальная линия, разделяющая кнопки от остальной части экрана
+        Divider(
+            color = Color.Gray, // Цвет линии
+            thickness = 1.dp, // Толщина линии
+            modifier = Modifier
+                .fillMaxWidth() // Растягиваем линию на всю ширину
+                .padding(bottom = 8.dp) // Отступ снизу от линии
+        )
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth() // Занимаем всю ширину экрана
+                .padding(horizontal = 16.dp), // Отступы вокруг
+            horizontalArrangement = Arrangement.SpaceBetween, // Равномерное распределение
+            verticalAlignment = Alignment.CenterVertically // Центрируем по вертикали
+        ) {
+
+            val profileIconColor by animateColorAsState( // перемнная плавного перехода
+                targetValue = if (activeIcon == "profile") colorResource(R.color.nfc_button_on) else Color.Gray,
+                animationSpec = tween(durationMillis = 300) // Плавный переход за 300 мс
+            )
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally, // Центрируем по горизонтали
+                verticalArrangement = Arrangement.Center, // Центрируем по вертикали
+                modifier = Modifier
+                    .fillMaxHeight() // Каждая кнопка заполняет высоту
+                    .weight(1f) // Каждая кнопка занимает 50% ширины
+            ) {
+                IconButton(
+                    onClick = { activeIcon = "profile" }, // надо добавить
+                    modifier = Modifier
+                        .padding(bottom = 0.dp) // Отступ снизу, чтобы текст не слипался с иконкой
+                        .fillMaxSize() // Кнопка занимает всю доступную площадь
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.person), // Иконка для "Профиля"
+                        contentDescription = "Профиль",
+                        modifier = Modifier.size(25.dp), // Размер иконки
+                        tint = profileIconColor // Цвет иконки
+                    )
+                }
+                Text(
+                    text = "Профиль", // Текст под иконкой
+                    color = profileIconColor, // Цвет текста
+                )
+            }
+
+            Spacer(modifier = Modifier.width(50.dp)) // отступ между кнопками
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally, // Центрируем по горизонтали
+                verticalArrangement = Arrangement.Center, // Центрируем по вертикали
+                modifier = Modifier
+                    .fillMaxHeight() // Каждая кнопка заполняет высоту
+                    .weight(1f) // Каждая кнопка занимает 50% ширины
+            ) {
+
+                val historyIconColor by animateColorAsState( // переменная плавного перехода
+                    targetValue = if (activeIcon == "history") colorResource(R.color.nfc_button_on) else Color.Gray,
+                    animationSpec = tween(durationMillis = 300) // Плавный переход за 300 мс
+                )
+
+                IconButton(
+                    onClick = { activeIcon = "history" },
+                    modifier = Modifier
+                        .padding(bottom = 4.dp) // Отступ снизу, чтобы текст не слипался с иконкой
+                        .fillMaxSize() // Кнопка занимает всю доступную площадь
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.history), // Иконка для "Истории"
+                        contentDescription = "История",
+                        modifier = Modifier.size(20.dp), // Размер иконки
+                        tint = historyIconColor // Цвет иконки
+                    )
+                }
+                Text(
+                    text = "История", // Текст под иконкой
+                    color = historyIconColor, // Цвет текста
                 )
             }
         }
