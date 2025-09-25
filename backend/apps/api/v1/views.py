@@ -8,7 +8,6 @@ from rest_framework.authentication import TokenAuthentication
 from django.db import transaction
 from django.contrib.auth import get_user_model
 import secrets
-import time
 
 from .serializers import (
     VerifyRequestSerializer, 
@@ -44,7 +43,6 @@ def has_access(user, access_point):
         return True
     return False
 
-
 def _respond(decision, reason, duration_ms=None):
     payload = {"decision": decision, "reason": reason}
     if duration_ms is not None:
@@ -57,93 +55,65 @@ class AccessVerifyView(APIView):
     authentication_classes = []
     permission_classes = []
     throttle_classes = [ScopedRateThrottle]
-    throttle_scope = "access_verify_wifi"
-
-    # Helpers (local)
-    def _token_preview(self, tok: str | None) -> str:
-        if not tok:
-            return ""
-        return (tok[:4] + "…" + tok[-4:]) if len(tok) > 8 else tok
-
-    def _remote_ip(self, request):
-        xff = (request.META.get("HTTP_X_FORWARDED_FOR") or "").split(",")[0].strip()
-        return xff or request.META.get("REMOTE_ADDR")
-
-    def _build_raw(self, *, request, data: dict, t0: float) -> dict:
-        safe = dict(data or {})
-        safe.pop("token", None)  # Удаляем полный токен из безопасных данных
-        return {
-            **safe,
-            "transport": "wifi",
-            "remote_ip": self._remote_ip(request),
-            "request_id": request.headers.get("X-Request-ID") or request.META.get("HTTP_X_REQUEST_ID"),
-            "token_preview": self._token_preview((data or {}).get("token")),
-            "processing_ms": int((time.perf_counter() - t0) * 1000),
-        }
+    throttle_scope = "access_verify"
 
     def dispatch(self, request, *args, **kwargs):
         try:
             return super().dispatch(request, *args, **kwargs)
         except Throttled:
-            # ScopedRateThrottle может кидать Throttled раньше, маппим в 200/DENY
-            t0 = time.perf_counter()
-            raw = self._build_raw(request=request, data=request.data, t0=t0)
+            # Log and return 200 DENY/RATE_LIMIT
             AccessEvent.objects.create(
                 access_point=None, user=None, device_id=None,
-                decision="DENY", reason=REASON_RATE_LIMIT, raw=raw
+                decision="DENY", reason=REASON_RATE_LIMIT, raw=request.data
             )
             return _respond("DENY", REASON_RATE_LIMIT)
 
     @transaction.atomic
     def post(self, request):
-        t0 = time.perf_counter()
-
+        # Normalize malformed payloads to 200/DENY + logging
         try:
-            serializer = VerifyRequestSerializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
-        except Throttled:
-            raw = self._build_raw(request=request, data=request.data, t0=t0)
+            req = VerifyRequestSerializer(data=request.data)
+            req.is_valid(raise_exception=True)
+        except ValidationError:
             AccessEvent.objects.create(
                 access_point=None, user=None, device_id=None,
-                decision="DENY", reason=REASON_RATE_LIMIT, raw=raw
+                decision="DENY", reason=REASON_INVALID_REQUEST, raw=request.data
             )
-            return _respond("DENY", REASON_RATE_LIMIT)
+            return _respond("DENY", REASON_INVALID_REQUEST)
 
-        data = serializer.validated_data
+        data = req.validated_data
 
+        # Gate
         try:
             ap = AccessPoint.objects.get(code=data["gate_id"])
         except AccessPoint.DoesNotExist:
-            raw = self._build_raw(request=request, data=data, t0=t0)
             AccessEvent.objects.create(access_point=None, user=None, device_id=None,
-                                       decision="DENY", reason=REASON_UNKNOWN_GATE, raw=raw)
+                                       decision="DENY", reason=REASON_UNKNOWN_GATE, raw=data)
             return _respond("DENY", REASON_UNKNOWN_GATE)
 
-        token = data["token"]
+        # Token → device
+        token = data["token"].strip()
         device = Device.objects.filter(auth_token=token).first()
         if not device:
-            raw = self._build_raw(request=request, data=data, t0=t0)
             AccessEvent.objects.create(access_point=ap, user=None, device_id=None,
-                                       decision="DENY", reason=REASON_TOKEN_INVALID, raw=raw)
+                                       decision="DENY", reason=REASON_TOKEN_INVALID, raw=data)
             return _respond("DENY", REASON_TOKEN_INVALID)
 
         if not device.is_active:
-            raw = self._build_raw(request=request, data=data, t0=t0)
             AccessEvent.objects.create(access_point=ap, user=device.user, device_id=device.id,
-                                       decision="DENY", reason=REASON_DEVICE_INACTIVE, raw=raw)
+                                       decision="DENY", reason=REASON_DEVICE_INACTIVE, raw=data)
             return _respond("DENY", REASON_DEVICE_INACTIVE)
 
         user = device.user
 
+        # RBAC
         if not has_access(user, ap):
-            raw = self._build_raw(request=request, data=data, t0=t0)
             AccessEvent.objects.create(access_point=ap, user=user, device_id=device.id,
-                                       decision="DENY", reason=REASON_NO_PERMISSION, raw=raw)
+                                       decision="DENY", reason=REASON_NO_PERMISSION, raw=data)
             return _respond("DENY", REASON_NO_PERMISSION)
 
-        raw = self._build_raw(request=request, data=data, t0=t0)
         AccessEvent.objects.create(access_point=ap, user=user, device_id=device.id,
-                                   decision="ALLOW", reason=REASON_OK, raw=raw)
+                                   decision="ALLOW", reason=REASON_OK, raw=data)
         return _respond("ALLOW", REASON_OK, duration_ms=800)
 
 

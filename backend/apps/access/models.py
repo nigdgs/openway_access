@@ -25,15 +25,5 @@ class AccessEvent(models.Model):
     device_id = models.IntegerField(null=True, blank=True)
     decision = models.CharField(max_length=10)  # "ALLOW"/"DENY"
     reason = models.CharField(max_length=64, blank=True)
-    # Пример содержимого raw:
-    # {
-    #   "transport": "wifi",
-    #   "remote_ip": "192.168.1.10",
-    #   "gate_id": "gate-01",
-    #   "token_preview": "abcd…wxyz",
-    #   "processing_ms": 12,
-    #   "request_id": "uuid-or-header",
-    # }
-    # Полный token никогда не сохраняется.
     raw = models.JSONField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
