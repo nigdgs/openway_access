@@ -5,12 +5,28 @@ info:
 paths:
   /api/v1/access/verify:
     post:
-      operationId: api_v1_access_verify_create
+      operationId: access-verify
       tags:
-      - api
+      - Access
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VerifyRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VerifyRequest'
+        required: true
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifyResponse'
+          description: ALLOW/DENY with reason
   /api/v1/auth/token:
     post:
       operationId: api_v1_auth_token_create
@@ -39,36 +55,122 @@ paths:
           description: ''
   /api/v1/devices/me:
     get:
-      operationId: api_v1_devices_me_retrieve
+      operationId: device-list-me
       tags:
-      - api
+      - Devices
       security:
       - tokenAuth: []
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeviceMeItem'
+          description: ''
   /api/v1/devices/register:
     post:
-      operationId: api_v1_devices_register_create
+      operationId: device-register
       description: |-
         Регистрация/ротация device_token.
         По умолчанию rotate=True — на каждый вход приложения выдаём новый токен (вариант А).
         rotate=False позволяет привязать android_device_id без смены токена.
         Аутентификация — по пользовательскому DRF Token (пользователь должен быть залогинен в приложении).
       tags:
-      - api
+      - Devices
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceRegisterRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DeviceRegisterRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DeviceRegisterRequest'
       security:
       - tokenAuth: []
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceRegisterResponse'
+          description: ''
   /api/v1/devices/revoke:
     post:
-      operationId: api_v1_devices_revoke_create
+      operationId: device-revoke
       tags:
-      - api
+      - Devices
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceRevokeRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DeviceRevokeRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DeviceRevokeRequest'
       security:
       - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceRevokeResponse'
+          description: ''
+        '404':
+          description: Device not found
+  /health:
+    get:
+      operationId: health_retrieve
+      description: Simple readiness probe used by Android clients and local scripts.
+      tags:
+      - health
+      security:
+      - tokenAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /healthz:
+    get:
+      operationId: healthz_retrieve
+      description: Simple readiness probe used by Android clients and local scripts.
+      tags:
+      - healthz
+      security:
+      - tokenAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /ready:
+    get:
+      operationId: ready_retrieve
+      description: Readiness probe for Kubernetes/Docker - checks DB connection.
+      tags:
+      - ready
+      security:
+      - tokenAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /readyz:
+    get:
+      operationId: readyz_retrieve
+      description: Readiness probe for Kubernetes/Docker - checks DB connection.
+      tags:
+      - readyz
+      security:
+      - tokenAuth: []
+      - {}
       responses:
         '200':
           description: No response body
@@ -93,6 +195,120 @@ components:
       - password
       - token
       - username
+    DecisionEnum:
+      enum:
+      - ALLOW
+      - DENY
+      type: string
+      description: |-
+        * `ALLOW` - ALLOW
+        * `DENY` - DENY
+    DeviceMeItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        android_device_id:
+          type: string
+        is_active:
+          type: boolean
+        token_preview:
+          type: string
+      required:
+      - android_device_id
+      - id
+      - is_active
+      - token_preview
+    DeviceRegisterRequest:
+      type: object
+      properties:
+        rotate:
+          type: boolean
+          default: true
+        android_device_id:
+          type: string
+          nullable: true
+          maxLength: 128
+    DeviceRegisterResponse:
+      type: object
+      properties:
+        device_id:
+          type: integer
+        token:
+          type: string
+        android_device_id:
+          type: string
+          nullable: true
+        qr_payload:
+          type: string
+      required:
+      - device_id
+      - qr_payload
+      - token
+    DeviceRevokeRequest:
+      type: object
+      properties:
+        device_id:
+          type: integer
+        android_device_id:
+          type: string
+    DeviceRevokeResponse:
+      type: object
+      properties:
+        device_id:
+          type: integer
+        is_active:
+          type: boolean
+      required:
+      - device_id
+      - is_active
+    ReasonEnum:
+      enum:
+      - UNKNOWN_GATE
+      - TOKEN_INVALID
+      - DEVICE_NOT_FOUND
+      - DEVICE_INACTIVE
+      - NO_PERMISSION
+      - OK
+      - INVALID_REQUEST
+      - DEVICE_MISMATCH
+      - RATE_LIMIT
+      type: string
+      description: |-
+        * `UNKNOWN_GATE` - UNKNOWN_GATE
+        * `TOKEN_INVALID` - TOKEN_INVALID
+        * `DEVICE_NOT_FOUND` - DEVICE_NOT_FOUND
+        * `DEVICE_INACTIVE` - DEVICE_INACTIVE
+        * `NO_PERMISSION` - NO_PERMISSION
+        * `OK` - OK
+        * `INVALID_REQUEST` - INVALID_REQUEST
+        * `DEVICE_MISMATCH` - DEVICE_MISMATCH
+        * `RATE_LIMIT` - RATE_LIMIT
+    VerifyRequest:
+      type: object
+      properties:
+        gate_id:
+          type: string
+        token:
+          type: string
+          maxLength: 128
+          minLength: 8
+      required:
+      - gate_id
+      - token
+    VerifyResponse:
+      type: object
+      properties:
+        decision:
+          $ref: '#/components/schemas/DecisionEnum'
+        duration_ms:
+          type: integer
+          minimum: 0
+        reason:
+          $ref: '#/components/schemas/ReasonEnum'
+      required:
+      - decision
+      - reason
   securitySchemes:
     tokenAuth:
       type: apiKey

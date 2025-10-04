@@ -1,0 +1,184 @@
+===========================================
+BACKEND REVIEW - Security Settings
+===========================================
+Date: 2025-10-04
+Review Type: Security Configuration & Deployment Checks
+
+Current Environment:
+--------------------
+Active Settings: accessproj.settings.dev (⚠️ DEV mode in container)
+DEBUG: True (dev), False (prod) ✓
+SECRET_KEY: 128 chars from env ✓
+ALLOWED_HOSTS: localhost,127.0.0.1
+
+Django manage.py check --deploy Results:
+=========================================
+
+WITH DEV SETTINGS (current):
+----------------------------
+7 issues identified:
+- security.W004: SECURE_HSTS_SECONDS not set
+- security.W008: SECURE_SSL_REDIRECT not True
+- security.W012: SESSION_COOKIE_SECURE not True
+- security.W016: CSRF_COOKIE_SECURE not True
+- security.W018: DEBUG=True in deployment ⚠️
+- drf_spectacular.W002: health/ready views missing serializer (2x)
+
+WITH PROD SETTINGS:
+-------------------
+✅ Only 2 non-critical warnings (drf_spectacular serializer hints)
+✅ All security checks passed!
+
+Security Settings Analysis:
+===========================
+
+base.py (Common):
+-----------------
+✓ SECRET_KEY: from env with fallback "dev-secret"
+  - Current: 128-char hex string ✓
+  - Issue: Fallback allows weak key if env not set ⚠️
+✓ DEBUG: False by default
+✓ ALLOWED_HOSTS: from env, defaults to "*" ⚠️
+✓ MIDDLEWARE: Comprehensive security stack
+  - SecurityMiddleware ✓
+  - CsrfViewMiddleware ✓
+  - XFrameOptionsMiddleware ✓
+  - Custom: RequestIdMiddleware, AccessLogMiddleware ✓
+✓ DATABASES: PostgreSQL with CONN_MAX_AGE=60 ✓
+✓ AUTH_PASSWORD_VALIDATORS: 5 validators including custom history ✓
+
+prod.py (Production):
+---------------------
+✅ DEBUG: False (enforced)
+✅ ALLOWED_HOSTS: from env (no wildcard)
+✅ SECURE_SSL_REDIRECT: True
+✅ SECURE_PROXY_SSL_HEADER: Configured for reverse proxy
+✅ HSTS: Enabled (1 year, subdomains, preload)
+✅ SESSION_COOKIE_SECURE: True
+✅ CSRF_COOKIE_SECURE: True
+✅ SESSION_COOKIE_HTTPONLY: True
+✅ SECURE_CONTENT_TYPE_NOSNIFF: True
+✅ SECURE_BROWSER_XSS_FILTER: True
+✅ X_FRAME_OPTIONS: DENY
+
+dev.py (Development):
+---------------------
+DEBUG: True
+ALLOWED_HOSTS: ["*", "testserver"]
+
+DRF Security:
+-------------
+✓ DEFAULT_AUTHENTICATION: TokenAuthentication
+✓ DEFAULT_PERMISSION: IsAuthenticated
+✓ THROTTLE_CLASSES: Scoped, User, Anon
+✓ THROTTLE_RATES:
+  - access_verify: 30/second (from env)
+  - user: 1000/day
+  - anon: 100/day
+
+CORS Configuration:
+-------------------
+✓ CORS_ALLOWED_ORIGINS: from env with localhost defaults
+✓ CORS_ALLOW_CREDENTIALS: True
+
+Environment Variables (.env):
+=============================
+POSTGRES_DB=nfc_access ✓
+POSTGRES_USER=nfc ✓
+POSTGRES_PASSWORD=nfc 🔴 WEAK PASSWORD!
+DB_HOST=db ✓
+DB_PORT=5432 ✓
+DJANGO_SECRET_KEY=f1b3f133... (128 chars) ✓
+DJANGO_SETTINGS_MODULE=accessproj.settings.dev ⚠️
+DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1 ✓
+ACCESS_VERIFY_RATE=30/second ✓
+
+🔴 CRITICAL ISSUES:
+===================
+1. POSTGRES_PASSWORD="nfc" - trivial password for database
+   - Impact: Easy database compromise
+   - Fix: Generate strong password (32+ chars, random)
+   - Command: openssl rand -hex 32
+
+🟡 HIGH PRIORITY:
+=================
+1. SECRET_KEY fallback to "dev-secret"
+   - Issue: If env var not set, uses weak default
+   - Fix: Fail fast if not set in production
+   - Patch: Check settings.prod.py enforcement
+
+2. DJANGO_SETTINGS_MODULE=dev in container
+   - Issue: Running dev settings with DEBUG=True
+   - Fix: Use accessproj.settings.prod for production
+   - Impact: Exposes debug info, disabled security headers
+
+3. ALLOWED_HOSTS default to "*" in base.py
+   - Issue: Allows any Host header (Host header injection)
+   - Fix: Remove default, enforce from env
+   - Note: Properly set in current .env ✓
+
+🟢 GOOD PRACTICES:
+==================
+✓ Production settings file with all security headers
+✓ HSTS with preload and long duration
+✓ Secure cookies (session, CSRF)
+✓ XSS protection headers
+✓ Comprehensive password validators
+✓ Rate limiting configured
+✓ CORS properly restricted
+✓ Token-based authentication
+✓ Connection pooling (CONN_MAX_AGE)
+✓ Non-root user in Docker (1000:1000)
+✓ Health checks implemented
+
+Middleware Stack Quality:
+=========================
+Order: ✓ Correct (Security first, CORS early)
+Custom: RequestIdMiddleware, AccessLogMiddleware
+Missing: 
+  - CSP (Content Security Policy) headers
+  - Referrer-Policy header
+  - Permissions-Policy header
+
+Recommendations:
+================
+1. 🔴 URGENT: Change POSTGRES_PASSWORD to strong random value
+2. 🟡 Set DJANGO_SETTINGS_MODULE=accessproj.settings.prod in production
+3. 🟡 Remove SECRET_KEY fallback or make it fail-fast in prod
+4. 🟡 Add CSP headers via django-csp or middleware
+5. 🟢 Consider Referrer-Policy and Permissions-Policy headers
+6. 🟢 Add security.txt file for responsible disclosure
+7. 🟢 Implement rate limiting per IP (currently per user only)
+8. 🟢 Add request signing/HMAC for ESP32 access verify calls
+9. 🟢 Consider 2FA for admin users
+10. 🟢 Rotate DJANGO_SECRET_KEY periodically (with grace period)
+
+Compliance Notes:
+=================
+OWASP Top 10:
+  ✓ A01:2021 - Broken Access Control (RBAC implemented)
+  ✓ A02:2021 - Cryptographic Failures (HTTPS enforced in prod)
+  ✓ A03:2021 - Injection (parameterized queries, CSRF protection)
+  ⚠ A04:2021 - Insecure Design (weak default password)
+  ✓ A05:2021 - Security Misconfiguration (good prod settings)
+  ⚠ A06:2021 - Vulnerable Components (see CVEs in deps report)
+  ✓ A07:2021 - Auth Failures (strong password validators, token auth)
+  ✓ A08:2021 - Software Integrity (pip requirements pinned)
+  ⚠ A09:2021 - Logging Failures (good logging, but check retention)
+  ✓ A10:2021 - SSRF (no external requests in critical paths)
+
+Next Steps:
+===========
+1. Create security hardening patch
+2. Document production deployment procedure
+3. Add pre-deployment checklist
+4. Implement automated security tests
+5. Set up SAST/DAST in CI/CD
+
+===========================================
+Status: COMPLETED - Security reviewed
+Critical: 1 (weak DB password)
+High: 3 (SECRET_KEY fallback, dev mode, allowed hosts)
+Medium: 5 (headers, rate limiting enhancements)
+===========================================
+
