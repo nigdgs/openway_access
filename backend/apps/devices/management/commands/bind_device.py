@@ -1,7 +1,9 @@
-from django.core.management.base import BaseCommand, CommandError
-from django.contrib.auth import get_user_model
-from apps.devices.models import Device
 import secrets
+
+from django.contrib.auth import get_user_model
+from django.core.management.base import BaseCommand, CommandError
+
+from apps.devices.models import Device
 
 User = get_user_model()
 
@@ -20,7 +22,7 @@ class Command(BaseCommand):
         try:
             user = User.objects.get(username=username)
         except User.DoesNotExist:
-            raise CommandError(f"User '{username}' not found")
+            raise CommandError(f"User '{username}' not found") from None
 
         device = Device.objects.create(
             user=user,

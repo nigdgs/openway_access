@@ -1,0 +1,101 @@
+openapi: 3.0.3
+info:
+  title: OpenWay Access API
+  version: 1.0.0
+paths:
+  /api/v1/access/verify:
+    post:
+      operationId: api_v1_access_verify_create
+      tags:
+      - api
+      responses:
+        '200':
+          description: No response body
+  /api/v1/auth/token:
+    post:
+      operationId: api_v1_auth_token_create
+      tags:
+      - api
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AuthToken'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AuthToken'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthToken'
+        required: true
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthToken'
+          description: ''
+  /api/v1/devices/me:
+    get:
+      operationId: api_v1_devices_me_retrieve
+      tags:
+      - api
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/devices/register:
+    post:
+      operationId: api_v1_devices_register_create
+      description: |-
+        Регистрация/ротация device_token.
+        По умолчанию rotate=True — на каждый вход приложения выдаём новый токен (вариант А).
+        rotate=False позволяет привязать android_device_id без смены токена.
+        Аутентификация — по пользовательскому DRF Token (пользователь должен быть залогинен в приложении).
+      tags:
+      - api
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/devices/revoke:
+    post:
+      operationId: api_v1_devices_revoke_create
+      tags:
+      - api
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          description: No response body
+components:
+  schemas:
+    AuthToken:
+      type: object
+      properties:
+        username:
+          type: string
+          writeOnly: true
+          title: Имя пользователя
+        password:
+          type: string
+          writeOnly: true
+          title: Пароль
+        token:
+          type: string
+          readOnly: true
+          title: Токен
+      required:
+      - password
+      - token
+      - username
+  securitySchemes:
+    tokenAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Token-based authentication with required prefix "Token"

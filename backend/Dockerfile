@@ -9,10 +9,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt /app/
-RUN pip install --no-cache-dir -r requirements.txt
+RUN python -m pip install --upgrade pip && \
+    pip install --default-timeout=300 --no-cache-dir -r requirements.txt
 
 COPY . /app/
 RUN chmod +x scripts/*.sh
+
+# Create non-root user
+RUN groupadd -g 1000 app && \
+    useradd -u 1000 -g app -s /bin/bash -m app && \
+    chown -R app:app /app
+
+USER 1000:1000
 
 EXPOSE 8000
 # dev server for MVP

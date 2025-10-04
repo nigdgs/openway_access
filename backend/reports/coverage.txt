@@ -1,0 +1,96 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.11, pytest-8.3.4, pluggy-1.6.0
+django: version: 5.0.14, settings: accessproj.settings.dev (from env)
+rootdir: /app
+configfile: pytest.ini
+testpaths: tests
+plugins: cov-7.0.0, django-4.9.0
+collected 52 items
+
+tests/api/test_access_verify.py ......                                   [ 11%]
+tests/api/test_access_verify_variant1_django.py .........s               [ 30%]
+tests/api/test_devices_manage.py ...                                     [ 36%]
+tests/api/test_devices_register.py ....                                  [ 44%]
+tests/api/test_health.py .                                               [ 46%]
+tests/api/test_healthz_readyz.py ..                                      [ 50%]
+tests/api/test_permissions.py ...                                        [ 55%]
+tests/api/test_purge_access_events.py ...                                [ 61%]
+tests/api/test_rate_limit_smoke.py .                                     [ 63%]
+tests/api/test_ready.py .                                                [ 65%]
+tests/api/test_url_resolve.py ....                                       [ 73%]
+tests/test_verify_mvp.py .......                                         [ 86%]
+tests/test_verify_user_token.py .......                                  [100%]
+
+================================ tests coverage ================================
+_______________ coverage: platform linux, python 3.12.11-final-0 _______________
+
+Name                                                                                      Stmts   Miss  Cover   Missing
+-----------------------------------------------------------------------------------------------------------------------
+accessproj/__init__.py                                                                        0      0   100%
+accessproj/asgi.py                                                                            4      4     0%   1-6
+accessproj/settings/__init__.py                                                               0      0   100%
+accessproj/settings/base.py                                                                  27      0   100%
+accessproj/settings/dev.py                                                                    3      0   100%
+accessproj/settings/logging_json.py                                                          22      1    95%   35
+accessproj/settings/prod.py                                                                  15     15     0%   1-27
+accessproj/settings/test.py                                                                   7      7     0%   1-27
+accessproj/urls_old.py                                                                        4      4     0%   14-19
+accessproj/wsgi.py                                                                            4      4     0%   1-6
+apps/__init__.py                                                                              0      0   100%
+apps/access/__init__.py                                                                       0      0   100%
+apps/access/admin.py                                                                         17      0   100%
+apps/access/apps.py                                                                           0      0   100%
+apps/access/management/__init__.py                                                            0      0   100%
+apps/access/management/commands/__init__.py                                                   0      0   100%
+apps/access/management/commands/purge_access_events.py                                       12      0   100%
+apps/access/management/commands/reset_demo.py                                                69     69     0%   1-94
+apps/access/management/commands/seed_demo.py                                                 24     24     0%   1-35
+apps/access/migrations/0001_initial.py                                                        7      0   100%
+apps/access/migrations/0002_accesspermission_access_acce_access__9a3b45_idx_and_more.py       5      0   100%
+apps/access/migrations/__init__.py                                                            0      0   100%
+apps/access/models.py                                                                        27      1    96%   13
+apps/access/serializers.py                                                                    0      0   100%
+apps/access/urls.py                                                                           0      0   100%
+apps/access/views.py                                                                          0      0   100%
+apps/accounts/__init__.py                                                                     0      0   100%
+apps/accounts/admin.py                                                                        6      0   100%
+apps/accounts/apps.py                                                                         6      0   100%
+apps/accounts/migrations/0001_initial.py                                                      7      0   100%
+apps/accounts/migrations/__init__.py                                                          0      0   100%
+apps/accounts/models.py                                                                       9      0   100%
+apps/accounts/permissions.py                                                                  0      0   100%
+apps/accounts/serializers.py                                                                  0      0   100%
+apps/accounts/signals.py                                                                     20      3    85%   16-18
+apps/accounts/urls.py                                                                         0      0   100%
+apps/accounts/validators.py                                                                  15     15     0%   1-22
+apps/accounts/views.py                                                                        0      0   100%
+apps/api/__init__.py                                                                          2      0   100%
+apps/api/apps.py                                                                              7      0   100%
+apps/api/urls.py                                                                              2      0   100%
+apps/api/v1/__init__.py                                                                       0      0   100%
+apps/api/v1/constants.py                                                                     11      0   100%
+apps/api/v1/serializers.py                                                                   32      1    97%   38
+apps/api/v1/urls.py                                                                           4      0   100%
+apps/api/v1/views.py                                                                        119      7    94%   56-62, 163, 219-223, 225
+apps/devices/__init__.py                                                                      0      0   100%
+apps/devices/admin.py                                                                         7      0   100%
+apps/devices/apps.py                                                                          0      0   100%
+apps/devices/management/__init__.py                                                           0      0   100%
+apps/devices/management/commands/__init__.py                                                  0      0   100%
+apps/devices/management/commands/bind_device.py                                              23     23     0%   1-36
+apps/devices/management/commands/set_token.py                                                20     20     0%   1-29
+apps/devices/migrations/0001_initial.py                                                       7      0   100%
+apps/devices/migrations/0002_auto_20250912_1225.py                                           13      4    69%   11-12, 16-17
+apps/devices/migrations/0003_alter_device_totp_secret.py                                      4      0   100%
+apps/devices/migrations/__init__.py                                                           0      0   100%
+apps/devices/models.py                                                                       11      0   100%
+apps/devices/serializers.py                                                                   0      0   100%
+apps/devices/urls.py                                                                          0      0   100%
+apps/devices/views.py                                                                         0      0   100%
+core/__init__.py                                                                              0      0   100%
+core/middleware.py                                                                           25      0   100%
+core/urls.py                                                                                  5      0   100%
+core/views.py                                                                                17      2    88%   22-23
+-----------------------------------------------------------------------------------------------------------------------
+TOTAL                                                                                       619    204    67%
+======================== 51 passed, 1 skipped in 3.57s =========================

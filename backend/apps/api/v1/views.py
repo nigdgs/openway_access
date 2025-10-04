@@ -1,47 +1,40 @@
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.exceptions import ValidationError, Throttled
-from rest_framework.throttling import ScopedRateThrottle
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.authentication import TokenAuthentication
-from django.db import transaction
-from django.contrib.auth import get_user_model
 import secrets
 
-from .serializers import (
-    VerifyRequestSerializer, 
-    VerifyResponseSerializer, 
-    DeviceRegisterRequestSerializer, 
-    DeviceRegisterResponseSerializer,
-    DeviceMeItemSerializer,
-    DeviceRevokeRequestSerializer,
-    DeviceRevokeResponseSerializer,
-)
+from django.contrib.auth import get_user_model
+from django.db import transaction
+from django.db.models import Q
+from drf_spectacular.utils import OpenApiResponse, extend_schema
+from rest_framework import status
+from rest_framework.authentication import TokenAuthentication
+from rest_framework.authtoken.models import Token
+from rest_framework.exceptions import Throttled, ValidationError
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
+from rest_framework.views import APIView
+
+from apps.access.models import AccessEvent, AccessPermission, AccessPoint
+from apps.devices.models import Device
+
 from .constants import (
-    REASON_UNKNOWN_GATE,
-    REASON_TOKEN_INVALID,
-    REASON_DEVICE_NOT_FOUND,
-    REASON_DEVICE_INACTIVE,
+    REASON_INVALID_REQUEST,
     REASON_NO_PERMISSION,
     REASON_OK,
-    REASON_INVALID_REQUEST,
     REASON_RATE_LIMIT,
+    REASON_TOKEN_INVALID,
+    REASON_UNKNOWN_GATE,
 )
-from apps.access.models import AccessPoint, AccessPermission, AccessEvent
-from apps.devices.models import Device
-from django.contrib.auth.models import Group
+from .serializers import (
+    DeviceMeItemSerializer,
+    DeviceRegisterRequestSerializer,
+    DeviceRegisterResponseSerializer,
+    DeviceRevokeRequestSerializer,
+    DeviceRevokeResponseSerializer,
+    VerifyRequestSerializer,
+    VerifyResponseSerializer,
+)
 
 User = get_user_model()
-
-def has_access(user, access_point):
-    # user or group allow
-    if AccessPermission.objects.filter(access_point=access_point, user=user, allow=True).exists():
-        return True
-    groups = Group.objects.filter(user=user)
-    if AccessPermission.objects.filter(access_point=access_point, group__in=groups, allow=True).exists():
-        return True
-    return False
 
 def _respond(decision, reason, duration_ms=None):
     payload = {"decision": decision, "reason": reason}
@@ -52,8 +45,8 @@ def _respond(decision, reason, duration_ms=None):
     return Response(ser.validated_data, status=status.HTTP_200_OK)
 
 class AccessVerifyView(APIView):
-    authentication_classes = []
-    permission_classes = []
+    authentication_classes: list = []
+    permission_classes: list = []
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "access_verify"
 
@@ -68,6 +61,12 @@ class AccessVerifyView(APIView):
             )
             return _respond("DENY", REASON_RATE_LIMIT)
 
+    @extend_schema(
+        operation_id="access-verify",
+        tags=["Access"],
+        request=VerifyRequestSerializer,
+        responses={200: OpenApiResponse(response=VerifyResponseSerializer, description="ALLOW/DENY with reason")},
+    )
     @transaction.atomic
     def post(self, request):
         # Normalize malformed payloads to 200/DENY + logging
@@ -91,28 +90,32 @@ class AccessVerifyView(APIView):
                                        decision="DENY", reason=REASON_UNKNOWN_GATE, raw=data)
             return _respond("DENY", REASON_UNKNOWN_GATE)
 
-        # Token → device
+        # Token → User
         token = data["token"].strip()
-        device = Device.objects.filter(auth_token=token).first()
-        if not device:
+        token_obj = Token.objects.select_related("user").filter(key=token).first()
+        if not token_obj:
             AccessEvent.objects.create(access_point=ap, user=None, device_id=None,
                                        decision="DENY", reason=REASON_TOKEN_INVALID, raw=data)
             return _respond("DENY", REASON_TOKEN_INVALID)
 
-        if not device.is_active:
-            AccessEvent.objects.create(access_point=ap, user=device.user, device_id=device.id,
-                                       decision="DENY", reason=REASON_DEVICE_INACTIVE, raw=data)
-            return _respond("DENY", REASON_DEVICE_INACTIVE)
+        user = token_obj.user
+        if not user.is_active:
+            AccessEvent.objects.create(access_point=ap, user=user, device_id=None,
+                                       decision="DENY", reason=REASON_TOKEN_INVALID, raw=data)
+            return _respond("DENY", REASON_TOKEN_INVALID)
 
-        user = device.user
-
-        # RBAC
-        if not has_access(user, ap):
-            AccessEvent.objects.create(access_point=ap, user=user, device_id=device.id,
+        # RBAC: check if user or any of their groups has permission
+        has_perm = AccessPermission.objects.filter(
+            Q(access_point=ap, user=user, allow=True) |
+            Q(access_point=ap, group__in=user.groups.all(), allow=True)
+        ).exists()
+        if not has_perm:
+            AccessEvent.objects.create(access_point=ap, user=user, device_id=None,
                                        decision="DENY", reason=REASON_NO_PERMISSION, raw=data)
             return _respond("DENY", REASON_NO_PERMISSION)
 
-        AccessEvent.objects.create(access_point=ap, user=user, device_id=device.id,
+        # OK - Access granted
+        AccessEvent.objects.create(access_point=ap, user=user, device_id=None,
                                    decision="ALLOW", reason=REASON_OK, raw=data)
         return _respond("ALLOW", REASON_OK, duration_ms=800)
 
@@ -127,6 +130,12 @@ class DeviceRegisterView(APIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        operation_id="device-register",
+        tags=["Devices"],
+        request=DeviceRegisterRequestSerializer,
+        responses={200: DeviceRegisterResponseSerializer},
+    )
     @transaction.atomic
     def post(self, request):
         # 1) Валидация входа
@@ -171,6 +180,11 @@ class DeviceListMeView(APIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        operation_id="device-list-me",
+        tags=["Devices"],
+        responses={200: DeviceMeItemSerializer(many=True)},
+    )
     def get(self, request):
         items = []
         for d in Device.objects.filter(user=request.user).order_by("-created_at"):
@@ -189,6 +203,12 @@ class DeviceRevokeView(APIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        operation_id="device-revoke",
+        tags=["Devices"],
+        request=DeviceRevokeRequestSerializer,
+        responses={200: DeviceRevokeResponseSerializer, 404: OpenApiResponse(description="Device not found")},
+    )
     def post(self, request):
         req = DeviceRevokeRequestSerializer(data=request.data)
         req.is_valid(raise_exception=True)
@@ -196,7 +216,11 @@ class DeviceRevokeView(APIView):
         if req.validated_data.get("device_id"):
             device = Device.objects.filter(pk=req.validated_data["device_id"], user=request.user).first()
         else:
-            device = Device.objects.filter(user=request.user, android_device_id=req.validated_data["android_device_id"]).order_by("-created_at").first()
+            qs = Device.objects.filter(
+                user=request.user,
+                android_device_id=req.validated_data["android_device_id"],
+            ).order_by("-created_at")
+            device = qs.first()
         if not device:
             return Response({"detail":"Device not found"}, status=status.HTTP_404_NOT_FOUND)
         device.is_active = False

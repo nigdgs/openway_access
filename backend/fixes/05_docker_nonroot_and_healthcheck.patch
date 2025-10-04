@@ -1,0 +1,26 @@
+diff --git a/backend/Dockerfile b/backend/Dockerfile
+index bef3aa5..f44f492 100644
+--- a/backend/Dockerfile
++++ b/backend/Dockerfile
+@@ -12 +12,2 @@ COPY requirements.txt /app/
+-RUN pip install --no-cache-dir -r requirements.txt
++RUN python -m pip install --upgrade pip && \
++    pip install --default-timeout=300 --no-cache-dir -r requirements.txt
+@@ -16,0 +18,7 @@ RUN chmod +x scripts/*.sh
++# Create non-root user
++RUN groupadd -g 1000 app && \
++    useradd -u 1000 -g app -s /bin/bash -m app && \
++    chown -R app:app /app
++
++USER 1000:1000
++
+diff --git a/backend/compose.yml b/backend/compose.yml
+index fdcdde9..9369228 100644
+--- a/backend/compose.yml
++++ b/backend/compose.yml
+@@ -30,0 +31,5 @@ services:
++    healthcheck:
++      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
++      interval: 10s
++      timeout: 3s
++      retries: 3

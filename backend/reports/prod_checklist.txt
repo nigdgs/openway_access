@@ -1,0 +1,68 @@
+=== Production Readiness Checklist ===
+
+✓ Settings (prod.py):
+  ✓ DEBUG = False
+  ✓ SECRET_KEY from env
+  ✓ ALLOWED_HOSTS from env (not *)
+  ✓ SECURE_SSL_REDIRECT = True
+  ✓ SECURE_HSTS_SECONDS = 31536000
+  ✓ SESSION_COOKIE_SECURE = True
+  ✓ CSRF_COOKIE_SECURE = True
+  ✓ CORS configured (django-cors-headers)
+  
+✓ DRF Security:
+  ✓ TokenAuthentication configured
+  ⚠ DEFAULT_PERMISSION_CLASSES = AllowAny (needs per-view permissions)
+  ✓ ScopedRateThrottle for access_verify
+  ✓ ACCESS_VERIFY_RATE from env (default 30/sec)
+
+✓ Database:
+  ✓ PostgreSQL configured
+  ✓ All credentials from env
+  ✓ CONN_MAX_AGE = 60 (connection pooling)
+
+✓ Static Files:
+  ✓ STATIC_ROOT configured
+  ✓ collectstatic works
+
+✓ Docker:
+  ✓ Multi-stage build: No (single stage)
+  ✓ Non-root user: ⚠ Running as root
+  ✓ Healthcheck: ⚠ Not defined in compose.yml
+  ✓ Gunicorn for production: Configured in entrypoint
+
+✗ Critical Security Issues:
+  ✗ Django 5.0.14 has 2 CVEs (needs upgrade to 5.0.24+)
+  ✗ pip 25.0.1 has CVE (needs upgrade to 25.3)
+
+✓ Migrations:
+  ✓ All applied, no conflicts detected
+
+✓ API Endpoints:
+  ✓ /api/v1/auth/token - Working
+  ✓ /api/v1/access/verify - Working (200 always, decision/reason)
+  ✓ /api/v1/devices/register - Working
+  ✓ Versioning: /api/v1/ prefix present
+
+⚠ Observability:
+  ⚠ No structured logging configured
+  ⚠ No health/readiness endpoints (/ returns 404)
+  ⚠ No metrics endpoint
+
+✓ Tests:
+  ✓ 46 tests pass, 1 skipped
+  ✓ 66% code coverage
+  ✓ Core logic (api/v1/views.py) 94% covered
+
+✓ Integration:
+  ✓ Android/ESP32 flow: login → token → verify works
+  ✓ Rate limiting functional
+  ✓ RBAC (user/group permissions) tested
+
+=== Summary ===
+READY for MVP with critical fixes:
+1. Upgrade Django to 5.0.24+ (CRITICAL)
+2. Add health/readiness endpoints (HIGH)
+3. Configure non-root user in Docker (MEDIUM)
+4. Add structured logging (MEDIUM)
+5. Review DEFAULT_PERMISSION_CLASSES (MEDIUM)

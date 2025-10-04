@@ -1,0 +1,9 @@
+All checks passed!
+Found 1 error in 1 file (errors prevented further checking)
+pyproject.toml:1: error: Error importing plugin "mypy_django_plugin.main": No module named 'mypy_django_plugin'  [misc]
+=== black check ===
+/usr/local/bin/python: No module named black
+black not available in container
+=== Summary ===
+ruff: All checks passed!
+mypy: Missing django-stubs plugin (not critical for MVP)

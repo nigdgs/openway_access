@@ -1,0 +1,361 @@
+diff --git a/backend/ops/nginx/conf.d/app.conf b/backend/ops/nginx/conf.d/app.conf
+new file mode 100644
+index 0000000..4df7245
+--- /dev/null
++++ b/backend/ops/nginx/conf.d/app.conf
+@@ -0,0 +1,144 @@
++# Nginx configuration for OpenWay Access API
++# This configuration proxies requests to the Django application
++
++upstream backend {
++    server web:8000;
++}
++
++server {
++    listen 80;
++    server_name _;  # Replace with your domain name
++    
++    # Uncomment these lines when TLS is configured
++    # return 301 https://$server_name$request_uri;
++}
++
++# Uncomment this server block when TLS is configured
++# server {
++#     listen 443 ssl http2;
++#     server_name _;  # Replace with your domain name
++#     
++#     # TLS certificates (managed by certbot)
++#     # ssl_certificate /etc/letsencrypt/live/yourdomain.com/fullchain.pem;
++#     # ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
++#     
++#     # TLS configuration
++#     ssl_protocols TLSv1.2 TLSv1.3;
++#     ssl_ciphers HIGH:!aNULL:!MD5;
++#     ssl_prefer_server_ciphers on;
++#     
++#     # HSTS (HTTP Strict Transport Security)
++#     # Uncomment only when TLS is fully working
++#     # add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
++#     
++#     # Security headers
++#     add_header X-Frame-Options "DENY" always;
++#     add_header X-Content-Type-Options "nosniff" always;
++#     add_header X-XSS-Protection "1; mode=block" always;
++#     
++#     # Static files
++#     location /static/ {
++#         alias /app/staticfiles/;
++#         expires 30d;
++#         add_header Cache-Control "public, immutable";
++#     }
++#     
++#     # Media files (if needed)
++#     location /media/ {
++#         alias /app/media/;
++#         expires 7d;
++#     }
++#     
++#     # Health check endpoints
++#     location ~ ^/(health|healthz|ready|readyz)$ {
++#         proxy_pass http://backend;
++#         proxy_set_header Host $host;
++#         proxy_set_header X-Real-IP $remote_addr;
++#         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
++#         proxy_set_header X-Forwarded-Proto $scheme;
++#         
++#         # Don't log health checks
++#         access_log off;
++#     }
++#     
++#     # API endpoints
++#     location / {
++#         proxy_pass http://backend;
++#         proxy_set_header Host $host;
++#         proxy_set_header X-Real-IP $remote_addr;
++#         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
++#         proxy_set_header X-Forwarded-Proto $scheme;
++#         
++#         # Pass or generate request ID
++#         proxy_set_header X-Request-ID $http_x_request_id;
++#         
++#         # WebSocket support (if needed)
++#         proxy_http_version 1.1;
++#         proxy_set_header Upgrade $http_upgrade;
++#         proxy_set_header Connection "upgrade";
++#         
++#         # Timeouts
++#         proxy_connect_timeout 60s;
++#         proxy_send_timeout 60s;
++#         proxy_read_timeout 60s;
++#     }
++# }
++
++# HTTP configuration (active until TLS is configured)
++server {
++    listen 80;
++    server_name _;
++    
++    # Security headers
++    add_header X-Frame-Options "DENY" always;
++    add_header X-Content-Type-Options "nosniff" always;
++    add_header X-XSS-Protection "1; mode=block" always;
++    
++    # Static files
++    location /static/ {
++        alias /app/staticfiles/;
++        expires 30d;
++        add_header Cache-Control "public, immutable";
++    }
++    
++    # Media files (if needed)
++    location /media/ {
++        alias /app/media/;
++        expires 7d;
++    }
++    
++    # Health check endpoints
++    location ~ ^/(health|healthz|ready|readyz)$ {
++        proxy_pass http://backend;
++        proxy_set_header Host $host;
++        proxy_set_header X-Real-IP $remote_addr;
++        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
++        proxy_set_header X-Forwarded-Proto $scheme;
++        
++        # Don't log health checks
++        access_log off;
++    }
++    
++    # API endpoints
++    location / {
++        proxy_pass http://backend;
++        proxy_set_header Host $host;
++        proxy_set_header X-Real-IP $remote_addr;
++        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
++        proxy_set_header X-Forwarded-Proto $scheme;
++        
++        # Pass or generate request ID
++        proxy_set_header X-Request-ID $http_x_request_id;
++        
++        # WebSocket support (if needed)
++        proxy_http_version 1.1;
++        proxy_set_header Upgrade $http_upgrade;
++        proxy_set_header Connection "upgrade";
++        
++        # Timeouts
++        proxy_connect_timeout 60s;
++        proxy_send_timeout 60s;
++        proxy_read_timeout 60s;
++    }
++}
++
+diff --git a/backend/ops/tls/setup_certbot.sh b/backend/ops/tls/setup_certbot.sh
+new file mode 100755
+index 0000000..3f5cf13
+--- /dev/null
++++ b/backend/ops/tls/setup_certbot.sh
+@@ -0,0 +1,205 @@
++#!/bin/bash
++# Setup script for Let's Encrypt certificates with Certbot
++# This script is designed for Ubuntu/Debian systems
++# DO NOT RUN AUTOMATICALLY - Review and execute manually
++
++set -euo pipefail
++
++echo "=================================="
++echo "Let's Encrypt / Certbot Setup"
++echo "=================================="
++echo ""
++echo "This script will:"
++echo "1. Install Nginx and Certbot"
++echo "2. Configure Nginx for your domain"
++echo "3. Obtain Let's Encrypt certificates"
++echo "4. Set up automatic renewal"
++echo ""
++echo "Prerequisites:"
++echo "- Domain name pointing to this server"
++echo "- Port 80 and 443 accessible from internet"
++echo "- Running as root or with sudo"
++echo ""
++read -p "Press Enter to continue or Ctrl+C to cancel..."
++
++# Variables (CUSTOMIZE THESE)
++DOMAIN="example.com"  # Change to your domain
++EMAIL="admin@example.com"  # Change to your email
++
++echo ""
++echo "Domain: $DOMAIN"
++echo "Email: $EMAIL"
++echo ""
++read -p "Are these correct? (yes/no): " confirm
++
++if [ "$confirm" != "yes" ]; then
++    echo "Please edit this script and update DOMAIN and EMAIL variables"
++    exit 1
++fi
++
++# Step 1: Install Nginx and Certbot
++echo ""
++echo "[1/5] Installing Nginx and Certbot..."
++apt-get update
++apt-get install -y nginx certbot python3-certbot-nginx
++
++# Step 2: Copy nginx configuration
++echo ""
++echo "[2/5] Setting up Nginx configuration..."
++if [ -f /etc/nginx/sites-available/openway ]; then
++    echo "Backing up existing configuration..."
++    cp /etc/nginx/sites-available/openway /etc/nginx/sites-available/openway.bak
++fi
++
++# Create initial configuration
++cat > /etc/nginx/sites-available/openway <<EOF
++server {
++    listen 80;
++    server_name $DOMAIN;
++    
++    location /.well-known/acme-challenge/ {
++        root /var/www/certbot;
++    }
++    
++    location / {
++        return 301 https://\$server_name\$request_uri;
++    }
++}
++EOF
++
++# Enable site
++ln -sf /etc/nginx/sites-available/openway /etc/nginx/sites-enabled/
++rm -f /etc/nginx/sites-enabled/default
++
++# Test configuration
++nginx -t
++
++# Reload Nginx
++systemctl reload nginx
++
++# Step 3: Create webroot directory
++echo ""
++echo "[3/5] Creating webroot directory for ACME challenge..."
++mkdir -p /var/www/certbot
++
++# Step 4: Obtain certificates
++echo ""
++echo "[4/5] Obtaining Let's Encrypt certificates..."
++certbot certonly \
++    --webroot \
++    --webroot-path=/var/www/certbot \
++    --email "$EMAIL" \
++    --agree-tos \
++    --no-eff-email \
++    -d "$DOMAIN"
++
++# Step 5: Update Nginx configuration with TLS
++echo ""
++echo "[5/5] Updating Nginx configuration with TLS..."
++
++cat > /etc/nginx/sites-available/openway <<EOF
++upstream backend {
++    server 127.0.0.1:8001;  # Adjust if needed
++}
++
++server {
++    listen 80;
++    server_name $DOMAIN;
++    
++    location /.well-known/acme-challenge/ {
++        root /var/www/certbot;
++    }
++    
++    location / {
++        return 301 https://\$server_name\$request_uri;
++    }
++}
++
++server {
++    listen 443 ssl http2;
++    server_name $DOMAIN;
++    
++    # TLS certificates
++    ssl_certificate /etc/letsencrypt/live/$DOMAIN/fullchain.pem;
++    ssl_certificate_key /etc/letsencrypt/live/$DOMAIN/privkey.pem;
++    
++    # TLS configuration
++    ssl_protocols TLSv1.2 TLSv1.3;
++    ssl_ciphers HIGH:!aNULL:!MD5;
++    ssl_prefer_server_ciphers on;
++    
++    # HSTS
++    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
++    
++    # Security headers
++    add_header X-Frame-Options "DENY" always;
++    add_header X-Content-Type-Options "nosniff" always;
++    add_header X-XSS-Protection "1; mode=block" always;
++    
++    # Static files (adjust path as needed)
++    location /static/ {
++        alias /path/to/staticfiles/;
++        expires 30d;
++        add_header Cache-Control "public, immutable";
++    }
++    
++    # Health check endpoints
++    location ~ ^/(health|healthz|ready|readyz)\$ {
++        proxy_pass http://backend;
++        proxy_set_header Host \$host;
++        proxy_set_header X-Real-IP \$remote_addr;
++        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
++        proxy_set_header X-Forwarded-Proto \$scheme;
++        access_log off;
++    }
++    
++    # API endpoints
++    location / {
++        proxy_pass http://backend;
++        proxy_set_header Host \$host;
++        proxy_set_header X-Real-IP \$remote_addr;
++        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
++        proxy_set_header X-Forwarded-Proto \$scheme;
++        proxy_set_header X-Request-ID \$http_x_request_id;
++        
++        proxy_http_version 1.1;
++        proxy_set_header Upgrade \$http_upgrade;
++        proxy_set_header Connection "upgrade";
++        
++        proxy_connect_timeout 60s;
++        proxy_send_timeout 60s;
++        proxy_read_timeout 60s;
++    }
++}
++EOF
++
++# Test configuration
++nginx -t
++
++# Reload Nginx
++systemctl reload nginx
++
++# Setup automatic renewal
++echo ""
++echo "Setting up automatic certificate renewal..."
++
++# Create renewal cron job
++cat > /etc/cron.d/certbot-renew <<EOF
++# Renew Let's Encrypt certificates twice daily
++0 */12 * * * root certbot renew --quiet --post-hook "systemctl reload nginx"
++EOF
++
++echo ""
++echo "=================================="
++echo "Setup Complete!"
++echo "=================================="
++echo ""
++echo "Your certificates are installed and Nginx is configured."
++echo "Certificates will be automatically renewed."
++echo ""
++echo "Next steps:"
++echo "1. Test your site: https://$DOMAIN"
++echo "2. Update Django ALLOWED_HOSTS to include '$DOMAIN'"
++echo "3. Monitor certificate renewal: certbot renew --dry-run"
++echo ""
++

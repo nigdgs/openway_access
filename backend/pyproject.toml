@@ -1,0 +1,48 @@
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+extend-exclude = ["migrations"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "S", "B", "C4", "DTZ"]
+ignore = ["S101", "S104"]
+
+[tool.ruff.lint.per-file-ignores]
+"accessproj/settings/*.py" = ["F403", "F405"]
+"tests/**.py"               = ["S106", "S107", "F841", "B007"]
+"apps/api/tests/**.py"      = ["S106", "S107", "F841", "B007"]
+"scripts/**.py"             = ["E402", "S106", "S107", "F841"]
+"apps/api/v1/constants.py"  = ["S105"]
+
+[tool.black]
+line-length = 120
+target-version = ['py312']
+extend-exclude = '''
+/(
+    migrations
+  | \.pytest_cache
+  | \.mypy_cache
+  | \.ruff_cache
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 120
+skip_gitignore = true
+extend_skip = ["migrations"]
+known_django = ["django"]
+known_drf = ["rest_framework", "drf_spectacular"]
+sections = ["FUTURE", "STDLIB", "DJANGO", "DRF", "THIRDPARTY", "FIRSTPARTY", "LOCALFOLDER"]
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+exclude = ["migrations/","tests/"]
+plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
+
+[tool.django-stubs]
+django_settings_module = "accessproj.settings.dev"
+

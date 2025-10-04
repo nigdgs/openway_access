@@ -1,6 +1,7 @@
 from django.urls import path
 from rest_framework.authtoken.views import obtain_auth_token
-from .views import AccessVerifyView, DeviceRegisterView, DeviceListMeView, DeviceRevokeView
+
+from .views import AccessVerifyView, DeviceListMeView, DeviceRegisterView, DeviceRevokeView
 
 urlpatterns = [
     path("access/verify", AccessVerifyView.as_view(), name="access-verify"),

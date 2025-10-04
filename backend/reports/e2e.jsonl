@@ -1,0 +1,7 @@
+{"ts":"2025-10-04T14:14:00Z","op":"healthz","status":200,"body":{"status": "ok"}}
+{"ts":"2025-10-04T14:14:00Z","op":"readyz","status":200,"body":{"status": "ready"}}
+{"ts":"2025-10-04T14:14:01Z","op":"auth","status":200,"token":"12caf4532aba8334682f1d45fb7548896e95d11f"}
+{"ts":"2025-10-04T14:14:11Z","op":"verify_allow","status":200,"body":{"decision":"DENY","reason":"NO_PERMISSION"}}
+{"ts":"2025-10-04T14:14:11Z","op":"verify_invalid","status":200,"body":{"decision":"DENY","reason":"TOKEN_INVALID"}}
+{"ts":"2025-10-04T14:14:13Z","op":"verify_unknown_gate","status":200,"body":{"decision":"DENY","reason":"UNKNOWN_GATE"}}
+{"ts":"2025-10-04T14:14:14Z","op":"schema","info":{"title":"OpenWay Access API","version":"1.0.0"}}

@@ -1,0 +1,80 @@
+graph TD
+    %% External Clients
+    Android[Android App<br/>HCE/NFC]
+    ESP32[ESP32 Device<br/>NFC Reader]
+    Admin[Admin Panel<br/>Django Admin]
+    
+    %% Network Layer
+    Nginx[Nginx/Reverse Proxy<br/>HTTPS Termination]
+    
+    %% Backend Services
+    Django[Django + DRF<br/>Gunicorn]
+    
+    %% API Endpoints
+    Auth["/api/v1/auth/token"<br/>TokenAuth Login]
+    DeviceReg["/api/v1/devices/register"<br/>Device Registration]
+    Verify["/api/v1/access/verify"<br/>Access Control]
+    
+    %% Business Logic
+    RateLimit[Rate Limiter<br/>ScopedRateThrottle<br/>30/sec default]
+    RBAC[RBAC Engine<br/>User/Group Permissions]
+    TokenAuth[Token Authentication<br/>DRF TokenAuth]
+    
+    %% Data Layer
+    DB[(PostgreSQL<br/>Users, Tokens,<br/>Devices, AccessPoints,<br/>Permissions, Events)]
+    
+    %% Monitoring & Logs
+    Logs[Logs/Monitoring<br/>Application Logs]
+    
+    %% Flow 1: Authentication
+    Android -->|1. POST username/password| Nginx
+    Nginx --> Auth
+    Auth --> TokenAuth
+    TokenAuth --> DB
+    DB -->|user_session_token| Auth
+    Auth -->|token| Android
+    
+    %% Flow 2: Access Verification (Android/ESP32)
+    Android -->|2. Transfer token via NFC/BLE| ESP32
+    ESP32 -->|3. POST gate_id + token| Nginx
+    Nginx --> Verify
+    Verify --> RateLimit
+    RateLimit -->|Check rate| Verify
+    Verify --> TokenAuth
+    TokenAuth --> DB
+    Verify --> RBAC
+    RBAC --> DB
+    DB -->|user, gate, permissions| RBAC
+    RBAC -->|ALLOW/DENY| Verify
+    Verify -->|decision, reason, duration_ms| ESP32
+    ESP32 -->|4. Open/Close Gate| ESP32
+    
+    %% Flow 3: Device Management
+    Android -->|POST /devices/register| Nginx
+    Nginx --> DeviceReg
+    DeviceReg --> TokenAuth
+    DeviceReg --> DB
+    DB -->|device_id, token, qr| DeviceReg
+    
+    %% Flow 4: Admin
+    Admin --> Nginx
+    Nginx --> Django
+    Django --> DB
+    
+    %% Logging
+    Verify -.->|Log events| Logs
+    Django -.->|App logs| Logs
+    
+    %% Styles
+    classDef client fill:#e1f5ff,stroke:#0277bd,stroke-width:2px
+    classDef network fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
+    classDef backend fill:#f1f8e9,stroke:#558b2f,stroke-width:2px
+    classDef data fill:#fce4ec,stroke:#c2185b,stroke-width:2px
+    classDef logic fill:#e8eaf6,stroke:#3f51b5,stroke-width:2px
+    
+    class Android,ESP32,Admin client
+    class Nginx network
+    class Django,Auth,DeviceReg,Verify backend
+    class DB data
+    class RateLimit,RBAC,TokenAuth logic
+

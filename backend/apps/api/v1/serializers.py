@@ -1,9 +1,11 @@
 from rest_framework import serializers
-from .constants import REASONS, DECISIONS
+
+from .constants import DECISIONS, REASONS
+
 
 class VerifyRequestSerializer(serializers.Serializer):
     gate_id = serializers.CharField()
-    token = serializers.CharField()
+    token = serializers.CharField(min_length=8, max_length=128)
 
 class VerifyResponseSerializer(serializers.Serializer):
     decision = serializers.ChoiceField(choices=list(DECISIONS))

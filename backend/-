@@ -1,0 +1,269 @@
+openapi: 3.0.3
+info:
+  title: OpenWay Access API
+  version: 1.0.0
+paths:
+  /api/v1/access/verify:
+    post:
+      operationId: access-verify
+      tags:
+      - Access
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VerifyRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VerifyRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifyResponse'
+          description: ALLOW/DENY with reason
+  /api/v1/auth/token:
+    post:
+      operationId: api_v1_auth_token_create
+      tags:
+      - api
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AuthToken'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AuthToken'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthToken'
+        required: true
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthToken'
+          description: ''
+  /api/v1/devices/me:
+    get:
+      operationId: device-list-me
+      tags:
+      - Devices
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeviceMeItem'
+          description: ''
+  /api/v1/devices/register:
+    post:
+      operationId: device-register
+      description: |-
+        Регистрация/ротация device_token.
+        По умолчанию rotate=True — на каждый вход приложения выдаём новый токен (вариант А).
+        rotate=False позволяет привязать android_device_id без смены токена.
+        Аутентификация — по пользовательскому DRF Token (пользователь должен быть залогинен в приложении).
+      tags:
+      - Devices
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceRegisterRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DeviceRegisterRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DeviceRegisterRequest'
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceRegisterResponse'
+          description: ''
+  /api/v1/devices/revoke:
+    post:
+      operationId: device-revoke
+      tags:
+      - Devices
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceRevokeRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DeviceRevokeRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DeviceRevokeRequest'
+      security:
+      - tokenAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceRevokeResponse'
+          description: ''
+        '404':
+          description: Device not found
+components:
+  schemas:
+    AuthToken:
+      type: object
+      properties:
+        username:
+          type: string
+          writeOnly: true
+          title: Имя пользователя
+        password:
+          type: string
+          writeOnly: true
+          title: Пароль
+        token:
+          type: string
+          readOnly: true
+          title: Токен
+      required:
+      - password
+      - token
+      - username
+    DecisionEnum:
+      enum:
+      - ALLOW
+      - DENY
+      type: string
+      description: |-
+        * `ALLOW` - ALLOW
+        * `DENY` - DENY
+    DeviceMeItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        android_device_id:
+          type: string
+        is_active:
+          type: boolean
+        token_preview:
+          type: string
+      required:
+      - android_device_id
+      - id
+      - is_active
+      - token_preview
+    DeviceRegisterRequest:
+      type: object
+      properties:
+        rotate:
+          type: boolean
+          default: true
+        android_device_id:
+          type: string
+          nullable: true
+          maxLength: 128
+    DeviceRegisterResponse:
+      type: object
+      properties:
+        device_id:
+          type: integer
+        token:
+          type: string
+        android_device_id:
+          type: string
+          nullable: true
+        qr_payload:
+          type: string
+      required:
+      - device_id
+      - qr_payload
+      - token
+    DeviceRevokeRequest:
+      type: object
+      properties:
+        device_id:
+          type: integer
+        android_device_id:
+          type: string
+    DeviceRevokeResponse:
+      type: object
+      properties:
+        device_id:
+          type: integer
+        is_active:
+          type: boolean
+      required:
+      - device_id
+      - is_active
+    ReasonEnum:
+      enum:
+      - UNKNOWN_GATE
+      - TOKEN_INVALID
+      - DEVICE_NOT_FOUND
+      - DEVICE_INACTIVE
+      - NO_PERMISSION
+      - OK
+      - INVALID_REQUEST
+      - DEVICE_MISMATCH
+      - RATE_LIMIT
+      type: string
+      description: |-
+        * `UNKNOWN_GATE` - UNKNOWN_GATE
+        * `TOKEN_INVALID` - TOKEN_INVALID
+        * `DEVICE_NOT_FOUND` - DEVICE_NOT_FOUND
+        * `DEVICE_INACTIVE` - DEVICE_INACTIVE
+        * `NO_PERMISSION` - NO_PERMISSION
+        * `OK` - OK
+        * `INVALID_REQUEST` - INVALID_REQUEST
+        * `DEVICE_MISMATCH` - DEVICE_MISMATCH
+        * `RATE_LIMIT` - RATE_LIMIT
+    VerifyRequest:
+      type: object
+      properties:
+        gate_id:
+          type: string
+        token:
+          type: string
+          maxLength: 128
+          minLength: 8
+      required:
+      - gate_id
+      - token
+    VerifyResponse:
+      type: object
+      properties:
+        decision:
+          $ref: '#/components/schemas/DecisionEnum'
+        duration_ms:
+          type: integer
+          minimum: 0
+        reason:
+          $ref: '#/components/schemas/ReasonEnum'
+      required:
+      - decision
+      - reason
+  securitySchemes:
+    tokenAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Token-based authentication with required prefix "Token"

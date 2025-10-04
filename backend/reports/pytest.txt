@@ -1,0 +1,18 @@
+...............s....................................                     [100%]
+=============================== warnings summary ===============================
+tests/api/test_access_verify.py: 6 warnings
+tests/api/test_access_verify_variant1_django.py: 9 warnings
+tests/api/test_devices_manage.py: 6 warnings
+tests/api/test_devices_register.py: 6 warnings
+tests/api/test_health.py: 1 warning
+tests/api/test_healthz_readyz.py: 2 warnings
+tests/api/test_permissions.py: 7 warnings
+tests/api/test_rate_limit_smoke.py: 2 warnings
+tests/api/test_ready.py: 1 warning
+tests/test_verify_mvp.py: 7 warnings
+tests/test_verify_user_token.py: 7 warnings
+  /app/accessproj/settings/logging_json.py:13: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "ts": datetime.utcnow().isoformat() + "Z",
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+51 passed, 1 skipped, 54 warnings in 3.22s

@@ -1,6 +1,7 @@
+from django.contrib.auth.hashers import check_password
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext as _
-from django.contrib.auth.hashers import check_password
+
 
 class RecentPasswordValidator:
     def __init__(self, history_size=5):

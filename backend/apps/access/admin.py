@@ -1,5 +1,7 @@
 from django.contrib import admin
-from .models import AccessPoint, AccessPermission, AccessEvent
+
+from .models import AccessEvent, AccessPermission, AccessPoint
+
 
 @admin.register(AccessPoint)
 class AccessPointAdmin(admin.ModelAdmin):

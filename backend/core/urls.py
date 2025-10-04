@@ -1,15 +1,16 @@
 from django.contrib import admin
-from django.urls import path, include
-from apps.api.v1.views import AccessVerifyView
+from django.urls import include, path
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
-from .views import health
+from .views import health, ready
 
 urlpatterns = [
-    path("admin/", admin.site.urls),
-    path("api/", include("apps.api.urls")),
-]
-
-urlpatterns += [
-    path("api/v1/access/verify", AccessVerifyView.as_view(), name="access-verify"),
     path("health", health, name="health"),
+    path("healthz", health, name="healthz"),  # Kubernetes-style alias
+    path("ready", ready, name="ready"),
+    path("readyz", ready, name="readyz"),  # Kubernetes-style alias
+    path("api/", include("apps.api.urls")),
+    path("schema/", SpectacularAPIView.as_view(), name="schema"),
+    path("docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="docs"),
+    path("admin/", admin.site.urls),
 ]
