@@ -1,0 +1,144 @@
+diff --git a/backend/.github/workflows/ci.yml b/backend/.github/workflows/ci.yml
+new file mode 100644
+index 0000000..3fbd680
+--- /dev/null
++++ b/backend/.github/workflows/ci.yml
+@@ -0,0 +1,138 @@
++name: CI Pipeline
++
++on:
++  push:
++    branches: [main, develop, feature/*]
++  pull_request:
++    branches: [main, develop]
++
++jobs:
++  test:
++    name: Test Python ${{ matrix.python-version }}
++    runs-on: ubuntu-latest
++    
++    strategy:
++      matrix:
++        python-version: ["3.12"]
++    
++    services:
++      postgres:
++        image: postgres:16-alpine
++        env:
++          POSTGRES_DB: test_db
++          POSTGRES_USER: test_user
++          POSTGRES_PASSWORD: test_pass
++        options: >-
++          --health-cmd pg_isready
++          --health-interval 10s
++          --health-timeout 5s
++          --health-retries 5
++        ports:
++          - 5432:5432
++    
++    steps:
++      - name: Checkout code
++        uses: actions/checkout@v4
++      
++      - name: Set up Python ${{ matrix.python-version }}
++        uses: actions/setup-python@v5
++        with:
++          python-version: ${{ matrix.python-version }}
++          cache: 'pip'
++      
++      - name: Install dependencies
++        run: |
++          python -m pip install --upgrade pip
++          pip install -r requirements.txt
++      
++      - name: Run ruff linter
++        run: |
++          ruff check .
++        continue-on-error: true
++      
++      - name: Run mypy type checker
++        run: |
++          mypy apps/ core/ accessproj/ --check-untyped-defs || echo "mypy checks failed (non-blocking)"
++        continue-on-error: true
++      
++      - name: Run bandit security scanner
++        run: |
++          bandit -q -r apps/ core/ accessproj/ || echo "bandit found issues (non-blocking)"
++        continue-on-error: true
++      
++      - name: Run pip-audit
++        run: |
++          pip-audit -r requirements.txt || echo "pip-audit found vulnerabilities (non-blocking)"
++        continue-on-error: true
++      
++      - name: Run tests
++        env:
++          DJANGO_SETTINGS_MODULE: accessproj.settings.test
++          POSTGRES_DB: test_db
++          POSTGRES_USER: test_user
++          POSTGRES_PASSWORD: test_pass
++          DB_HOST: localhost
++          DB_PORT: 5432
++        run: |
++          pytest -q --maxfail=1
++      
++      - name: Run tests with coverage
++        env:
++          DJANGO_SETTINGS_MODULE: accessproj.settings.test
++          POSTGRES_DB: test_db
++          POSTGRES_USER: test_user
++          POSTGRES_PASSWORD: test_pass
++          DB_HOST: localhost
++          DB_PORT: 5432
++        run: |
++          pytest --cov=apps --cov=core --cov=accessproj --cov-report=term-missing --cov-report=xml
++      
++      - name: Upload coverage to Codecov (optional)
++        uses: codecov/codecov-action@v4
++        if: always()
++        with:
++          file: ./coverage.xml
++          flags: unittests
++          name: codecov-umbrella
++        continue-on-error: true
++
++  # Docker build job (commented out - enable when ready to use GHCR)
++  # docker:
++  #   name: Build Docker image
++  #   runs-on: ubuntu-latest
++  #   needs: test
++  #   if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
++  #   
++  #   steps:
++  #     - name: Checkout code
++  #       uses: actions/checkout@v4
++  #     
++  #     - name: Set up Docker Buildx
++  #       uses: docker/setup-buildx-action@v3
++  #     
++  #     - name: Log in to GitHub Container Registry
++  #       uses: docker/login-action@v3
++  #       with:
++  #         registry: ghcr.io
++  #         username: ${{ github.actor }}
++  #         password: ${{ secrets.GITHUB_TOKEN }}
++  #     
++  #     - name: Extract metadata
++  #       id: meta
++  #       uses: docker/metadata-action@v5
++  #       with:
++  #         images: ghcr.io/${{ github.repository }}
++  #         tags: |
++  #           type=ref,event=branch
++  #           type=sha,prefix={{branch}}-
++  #     
++  #     - name: Build and push Docker image
++  #       uses: docker/build-push-action@v5
++  #       with:
++  #         context: .
++  #         push: true
++  #         tags: ${{ steps.meta.outputs.tags }}
++  #         labels: ${{ steps.meta.outputs.labels }}
++  #         cache-from: type=gha
++  #         cache-to: type=gha,mode=max
++

@@ -1,11 +1,14 @@
-from django.core.management.base import BaseCommand
+import secrets
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from django.core.management.base import BaseCommand
 from django.db import transaction
 from rest_framework.authtoken.models import Token
-from apps.access.models import AccessPoint, AccessPermission, AccessEvent
+
+from apps.access.models import AccessEvent, AccessPermission, AccessPoint
 from apps.devices.models import Device
-import secrets
+
 
 class Command(BaseCommand):
     help = "Purge demo data and create clean admin+demo, gate, permissions, and a fresh device token."
@@ -23,7 +26,7 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, *args, **opts):
-        User = get_user_model()
+        user_model = get_user_model()
         admin_user = opts["admin_user"]
         admin_pass = opts["admin_pass"]
         admin_email = opts["admin_email"]
@@ -51,10 +54,10 @@ class Command(BaseCommand):
         Token.objects.all().delete()
 
         self.stdout.write(self.style.WARNING("Deleting users..."))
-        User.objects.all().delete()
+        user_model.objects.all().delete()
 
         # Recreate admin
-        admin = User.objects.create_user(username=admin_user, email=admin_email)
+        admin = user_model.objects.create_user(username=admin_user, email=admin_email)
         admin.is_staff = True
         admin.is_superuser = True
         admin.set_password(admin_pass)
@@ -62,7 +65,7 @@ class Command(BaseCommand):
         Token.objects.get_or_create(user=admin)
 
         # Recreate demo
-        demo = User.objects.create_user(username=demo_user, email=f"{demo_user}@example.com")
+        demo = user_model.objects.create_user(username=demo_user, email=f"{demo_user}@example.com")
         demo.is_active = True
         demo.set_password(demo_pass)
         demo.save()

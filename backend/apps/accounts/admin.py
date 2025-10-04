@@ -1,5 +1,7 @@
 from django.contrib import admin
+
 from .models import PasswordHistory
+
 
 @admin.register(PasswordHistory)
 class PasswordHistoryAdmin(admin.ModelAdmin):

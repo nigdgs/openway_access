@@ -4,3 +4,11 @@ __pycache__/
 media/
 staticfiles/
 .DS_Store
+ops/backups/
+GO_LIVE_CHECK.md
+
+# Local env & reports
+.env
+GO_LIVE_CHECK.md
+ops/backups/
+*.sql.gz

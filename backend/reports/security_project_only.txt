@@ -1,0 +1,90 @@
+[main]	INFO	profile include tests: None
+[main]	INFO	profile exclude tests: None
+[main]	INFO	cli include tests: None
+[main]	INFO	cli exclude tests: B101,B104
+[main]	INFO	running on Python 3.12.11
+Working... ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
+Run started:2025-10-04 13:38:06.950867
+
+Test results:
+>> Issue: [B106:hardcoded_password_funcarg] Possible hardcoded password: 'testpass123'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b106_hardcoded_password_funcarg.html
+   Location: apps/api/tests/test_android_integration.py:20:20
+19	        # Create test user and token
+20	        self.user = User.objects.create_user(
+21	            username='testuser',
+22	            password='testpass123',
+23	            email='test@example.com'
+24	        )
+25	        self.token = Token.objects.create(user=self.user)
+
+--------------------------------------------------
+>> Issue: [B106:hardcoded_password_funcarg] Possible hardcoded password: 'test_token_123'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b106_hardcoded_password_funcarg.html
+   Location: apps/api/tests/test_android_integration.py:128:17
+127	        # Create a device with token
+128	        device = Device.objects.create(
+129	            user=self.user,
+130	            auth_token='test_token_123',
+131	            is_active=True
+132	        )
+133	
+
+--------------------------------------------------
+>> Issue: [B106:hardcoded_password_funcarg] Possible hardcoded password: 'existing_token'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b106_hardcoded_password_funcarg.html
+   Location: apps/api/tests/test_android_integration.py:205:26
+204	        # Create existing device
+205	        existing_device = Device.objects.create(
+206	            user=self.user,
+207	            auth_token='existing_token',
+208	            is_active=True,
+209	            android_device_id='old_android_id'
+210	        )
+211	
+
+--------------------------------------------------
+>> Issue: [B105:hardcoded_password_string] Possible hardcoded password: 'TOKEN_INVALID'
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b105_hardcoded_password_string.html
+   Location: apps/api/v1/constants.py:6:26
+5	REASON_UNKNOWN_GATE     = "UNKNOWN_GATE"
+6	REASON_TOKEN_INVALID    = "TOKEN_INVALID"
+7	REASON_DEVICE_NOT_FOUND = "DEVICE_NOT_FOUND"
+
+--------------------------------------------------
+>> Issue: [B106:hardcoded_password_funcarg] Possible hardcoded password: ''
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b106_hardcoded_password_funcarg.html
+   Location: apps/devices/migrations/0002_auto_20250912_1225.py:17:4
+16	    Device = apps.get_model('devices', 'Device')
+17	    Device.objects.all().update(auth_token='')
+18	
+
+--------------------------------------------------
+
+Code scanned:
+	Total lines of code: 1053
+	Total lines skipped (#nosec): 0
+	Total potential issues skipped due to specifically being disabled (e.g., #nosec BXXX): 0
+
+Run metrics:
+	Total issues (by severity):
+		Undefined: 0
+		Low: 5
+		Medium: 0
+		High: 0
+	Total issues (by confidence):
+		Undefined: 0
+		Low: 0
+		Medium: 5
+		High: 0
+Files skipped (0):

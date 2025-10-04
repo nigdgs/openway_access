@@ -1,6 +1,8 @@
-from django.core.management.base import BaseCommand, CommandError
-from apps.devices.models import Device
 import secrets
+
+from django.core.management.base import BaseCommand, CommandError
+
+from apps.devices.models import Device
 
 
 class Command(BaseCommand):
@@ -17,10 +19,10 @@ class Command(BaseCommand):
         try:
             device = Device.objects.get(pk=device_id)
         except Device.DoesNotExist:
-            raise CommandError(f"Device id {device_id} not found")
+            raise CommandError(f"Device id {device_id} not found") from None
 
         device.auth_token = token
-        device.save(update_fields=["auth_token"]) 
+        device.save(update_fields=["auth_token"])
 
         self.stdout.write(self.style.SUCCESS("Token set:"))
         self.stdout.write(f"  device_id = {device.id}")

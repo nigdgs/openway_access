@@ -1,0 +1,59 @@
+diff --git a/backend/accessproj/settings/base.py b/backend/accessproj/settings/base.py
+index f75c4a8..0c41f50 100644
+--- a/backend/accessproj/settings/base.py
++++ b/backend/accessproj/settings/base.py
+@@ -15,0 +16 @@ INSTALLED_APPS = [
++    "corsheaders",
+@@ -17,0 +19 @@ INSTALLED_APPS = [
++    "drf_spectacular",
+@@ -25,0 +28 @@ MIDDLEWARE = [
++    "corsheaders.middleware.CorsMiddleware",
+@@ -60,0 +64 @@ DATABASES = {
++        "CONN_MAX_AGE": 60,
+@@ -90 +94 @@ REST_FRAMEWORK = {
+-        "rest_framework.permissions.AllowAny",
++        "rest_framework.permissions.IsAuthenticated",
+@@ -102 +106,16 @@ REST_FRAMEWORK = {
+-}
+\ No newline at end of file
++    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
++}
++
++SPECTACULAR_SETTINGS = {
++    "TITLE": "OpenWay Access API",
++    "VERSION": "1.0.0",
++    "SERVE_INCLUDE_SCHEMA": False,
++    "SERVE_PERMISSIONS": ["rest_framework.permissions.AllowAny"],
++}
++
++# CORS settings
++CORS_ALLOWED_ORIGINS = os.environ.get(
++    "CORS_ALLOWED_ORIGINS",
++    "http://localhost:3000,http://localhost:8080"
++).split(",")
++CORS_ALLOW_CREDENTIALS = True
+diff --git a/backend/core/views.py b/backend/core/views.py
+index 819a718..de55eac 100644
+--- a/backend/core/views.py
++++ b/backend/core/views.py
+@@ -0,0 +1 @@
++from django.db import connection
+@@ -1,0 +3,2 @@ from django.http import JsonResponse
++from rest_framework.decorators import api_view, permission_classes
++from rest_framework.permissions import AllowAny
+@@ -3,0 +7,2 @@ from django.http import JsonResponse
++@api_view(["GET"])
++@permission_classes([AllowAny])
+@@ -6,0 +12,12 @@ def health(request):
++
++
++@api_view(["GET"])
++@permission_classes([AllowAny])
++def ready(request):
++    """Readiness probe for Kubernetes/Docker - checks DB connection."""
++    try:
++        with connection.cursor() as c:
++            c.execute("SELECT 1;")
++        return JsonResponse({"status": "ready"})
++    except Exception:
++        return JsonResponse({"status": "not-ready"}, status=503)

@@ -1,9 +1,11 @@
-from django.core.management.base import BaseCommand
+import secrets
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
-from apps.access.models import AccessPoint, AccessPermission
+from django.core.management.base import BaseCommand
+
+from apps.access.models import AccessPermission, AccessPoint
 from apps.devices.models import Device
-import secrets
 
 User = get_user_model()
 
@@ -28,6 +30,6 @@ class Command(BaseCommand):
         Device.objects.create(user=user, auth_token=token, is_active=True)
 
         self.stdout.write(self.style.SUCCESS("Seed complete:"))
-        self.stdout.write(f"  gate_id = gate-01")
-        self.stdout.write(f"  username = demo / password = StrongPass_123")
+        self.stdout.write("  gate_id = gate-01")
+        self.stdout.write("  username = demo / password = StrongPass_123")
         self.stdout.write(f"  Static token = {token}")
