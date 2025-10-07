@@ -56,12 +56,16 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.example.openway.ble.BleClient
+import com.example.openway.util.TokenProvider
 
 
 
 class MainActivity : ComponentActivity() {
+    internal lateinit var bleClient: BleClient
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        bleClient = BleClient(this)
         setContent {
             AppNav()
         }
@@ -176,6 +180,8 @@ fun Content(flagTheme: Boolean, navController: NavController) {
 @Composable
 fun TextButtonText (flagTheme: Boolean) {
     var flagNfcButton by remember { mutableStateOf(false) } // переменная состояния кнопки nfc
+    val context = LocalContext.current
+    val mainActivity = context as? MainActivity
 
     Column (
         modifier = Modifier
@@ -194,7 +200,17 @@ fun TextButtonText (flagTheme: Boolean) {
         NfcButton(
             flagNfcButton = flagNfcButton,
             flagTheme,
-            onNfcButton = { flagNfcButton = !flagNfcButton })
+            onNfcButton = {
+                flagNfcButton = !flagNfcButton
+                if (flagNfcButton) {
+                    mainActivity?.let {
+                        val token = TokenProvider.getToken(it)
+                        it.bleClient.sendToken(token)
+                    }
+                } else {
+                    // ничего не делаем при выключении
+                }
+            })
 
         Spacer(modifier = Modifier.height(30.dp)) // отступ
 
