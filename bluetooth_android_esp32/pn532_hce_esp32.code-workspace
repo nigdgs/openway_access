@@ -1,0 +1,12 @@
+{
+	"folders": [
+		{
+			"path": "../pn532_hce_esp32/pn532_hce_esp32"
+		},
+		{
+			"name": "bluetooth_android_esp32",
+			"path": "."
+		}
+	],
+	"settings": {}
+}
