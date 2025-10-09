@@ -169,10 +169,6 @@ fun Content(flagTheme: Boolean, navController: NavController) {
         Spacer(modifier = Modifier.height(150.dp))
 
         AccSection(flagTheme, navController)
-
-        Spacer(modifier = Modifier.height(190.dp)) // отступ
-
-        SwitchAccHistory()
     }
 }
 
@@ -441,107 +437,6 @@ fun exitAcc (navController: NavController) {
                 color = Color.Red, // Цвет текста
                 fontSize = 16.sp // размер текста
             )
-        }
-    }
-}
-
-
-
-
-@Composable
-fun SwitchAccHistory () {
-
-    var activeIcon by remember { mutableStateOf("profile") } // Изначально активен "Профиль"
-
-    //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    // Нудно будет пересоздать activeIcon в другом месте, что хранить его состояние не здесь
-    //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth() // Занимаем всю ширину экрана
-    ) {
-        // Горизонтальная линия, разделяющая кнопки от остальной части экрана
-        Divider(
-            color = Color.Gray, // Цвет линии
-            thickness = 1.dp, // Толщина линии
-            modifier = Modifier
-                .fillMaxWidth() // Растягиваем линию на всю ширину
-                .padding(bottom = 8.dp) // Отступ снизу от линии
-        )
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth() // Занимаем всю ширину экрана
-                .padding(horizontal = 16.dp), // Отступы вокруг
-            horizontalArrangement = Arrangement.SpaceBetween, // Равномерное распределение
-            verticalAlignment = Alignment.CenterVertically // Центрируем по вертикали
-        ) {
-
-            val profileIconColor by animateColorAsState( // перемнная плавного перехода
-                targetValue = if (activeIcon == "profile") colorResource(R.color.nfc_button_on) else Color.Gray,
-                animationSpec = tween(durationMillis = 300) // Плавный переход за 300 мс
-            )
-
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally, // Центрируем по горизонтали
-                verticalArrangement = Arrangement.Center, // Центрируем по вертикали
-                modifier = Modifier
-                    .fillMaxHeight() // Каждая кнопка заполняет высоту
-                    .weight(1f) // Каждая кнопка занимает 50% ширины
-            ) {
-                IconButton(
-                    onClick = { activeIcon = "profile" }, // надо добавить
-                    modifier = Modifier
-                        .padding(bottom = 0.dp) // Отступ снизу, чтобы текст не слипался с иконкой
-                        .fillMaxSize() // Кнопка занимает всю доступную площадь
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.person), // Иконка для "Профиля"
-                        contentDescription = "Профиль",
-                        modifier = Modifier.size(25.dp), // Размер иконки
-                        tint = profileIconColor // Цвет иконки
-                    )
-                }
-                Text(
-                    text = "Профиль", // Текст под иконкой
-                    color = profileIconColor, // Цвет текста
-                )
-            }
-
-            Spacer(modifier = Modifier.width(50.dp)) // отступ между кнопками
-
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally, // Центрируем по горизонтали
-                verticalArrangement = Arrangement.Center, // Центрируем по вертикали
-                modifier = Modifier
-                    .fillMaxHeight() // Каждая кнопка заполняет высоту
-                    .weight(1f) // Каждая кнопка занимает 50% ширины
-            ) {
-
-                val historyIconColor by animateColorAsState( // переменная плавного перехода
-                    targetValue = if (activeIcon == "history") colorResource(R.color.nfc_button_on) else Color.Gray,
-                    animationSpec = tween(durationMillis = 300) // Плавный переход за 300 мс
-                )
-
-                IconButton(
-                    onClick = { activeIcon = "history" },
-                    modifier = Modifier
-                        .padding(bottom = 4.dp) // Отступ снизу, чтобы текст не слипался с иконкой
-                        .fillMaxSize() // Кнопка занимает всю доступную площадь
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.history), // Иконка для "Истории"
-                        contentDescription = "История",
-                        modifier = Modifier.size(20.dp), // Размер иконки
-                        tint = historyIconColor // Цвет иконки
-                    )
-                }
-                Text(
-                    text = "История", // Текст под иконкой
-                    color = historyIconColor, // Цвет текста
-                )
-            }
         }
     }
 }
