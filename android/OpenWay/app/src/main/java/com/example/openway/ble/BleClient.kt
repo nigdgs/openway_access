@@ -3,203 +3,208 @@ package com.example.openway.ble
 import android.Manifest
 import android.annotation.SuppressLint
 import android.bluetooth.*
-import android.bluetooth.le.*
 import android.content.Context
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
-import android.os.Handler
-import android.os.Looper
-import android.os.ParcelUuid
-import android.widget.Toast
-import androidx.activity.ComponentActivity
-import androidx.activity.result.ActivityResultLauncher
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.ContextCompat
-import androidx.lifecycle.DefaultLifecycleObserver
-import androidx.lifecycle.LifecycleOwner
+import android.util.Log
+import androidx.core.app.ActivityCompat
+import kotlinx.coroutines.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import java.util.concurrent.atomic.AtomicBoolean
 
-class BleClient(private val activity: ComponentActivity) {
+class BleClient(private val context: Context) {
 
-    private val ctx: Context get() = activity
-    private val bluetoothManager = ctx.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
-    private val adapter: BluetoothAdapter? get() = bluetoothManager.adapter
-    private val scanner: BluetoothLeScanner? get() = adapter?.bluetoothLeScanner
+    private val TAG = "BleClient"
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    @Volatile private var isScanning = false
-    private var scanCallback: ScanCallback? = null
+    // текущее соединение
     private var gatt: BluetoothGatt? = null
-    private val main = Handler(Looper.getMainLooper())
 
-    // --- permissions & enable BT ---
-    private val permissionLauncher: ActivityResultLauncher<Array<String>> =
-        activity.registerForActivityResult(
-            ActivityResultContracts.RequestMultiplePermissions()
-        ) { res: Map<String, Boolean> ->
-            if (res.values.all { it }) startFlow()
-            else toast("Нужны разрешения для BLE")
-        }
+    // синхронизация, чтобы не запускать две операции параллельно
+    private val opMutex = Mutex()
+    private val isClosed = AtomicBoolean(false)
 
-    private val btEnableLauncher: ActivityResultLauncher<Intent> =
-        activity.registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { _ ->
-            if (adapter?.isEnabled == true) startFlow()
-            else toast("Включи Bluetooth и повтори")
-        }
+    // ---- публичный API ------------------------------------------------------
 
-    init {
-        // Авто-очистка ресурсов, если Activity уничтожается
-        activity.lifecycle.addObserver(object : DefaultLifecycleObserver {
-            override fun onDestroy(owner: LifecycleOwner) {
-                cleanup()
+    /**
+     * Подключиться к устройству по MAC и отправить токен целиком как UTF-8.
+     * Результат приходит в onResult(success, message).
+     */
+    fun sendToken(
+        token: String,
+        onResult: (Boolean, String) -> Unit = { _, _ -> }
+    ) {
+        scope.launch {
+            val res = runCatching { sendTokenInternal(token) }
+            withContext(Dispatchers.Main) {
+                res.onSuccess { ok ->
+                    onResult(ok, if (ok) "OK" else "Не удалось записать характеристику")
+                }.onFailure { e ->
+                    onResult(false, e.message ?: "Ошибка")
+                }
             }
-        })
+        }
     }
 
-    @SuppressLint("MissingPermission")
-    private fun cleanup() {
-        stopScan()
-        try { gatt?.disconnect() } catch (_: Exception) {}
-        try { gatt?.close() } catch (_: Exception) {}
+    /** Закрыть BLE (вызывайте из onDestroy Activity). */
+    fun close() {
+        if (isClosed.getAndSet(true)) return
+        try { gatt?.disconnect() } catch (_: Throwable) {}
+        try { gatt?.close() } catch (_: Throwable) {}
         gatt = null
-        main.removeCallbacksAndMessages(null)
+        scope.cancel()
     }
 
-    private var pendingToken: String? = null
-
-    fun sendToken(token: String) {
-        pendingToken = token
-        ensurePrerequisites()
-    }
-
-    private fun ensurePrerequisites() {
-        if (adapter == null) { toast("На устройстве нет Bluetooth"); return }
-        if (adapter?.isEnabled != true) {
-            btEnableLauncher.launch(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
-            return
-        }
-        val needs = neededPermissions()
-        val missing = needs.filter {
-            ContextCompat.checkSelfPermission(ctx, it) != PackageManager.PERMISSION_GRANTED
-        }
-        if (missing.isNotEmpty()) {
-            permissionLauncher.launch(needs)
-            return
-        }
-        startFlow()
-    }
-
-    private fun neededPermissions(): Array<String> =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
-            arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)
-        else
-            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
-
-    private fun startFlow() {
-        val token = pendingToken ?: return
-        startScan(
-            onFound = { device ->
-                stopScan()
-                connectAndWrite(device, token)
-            },
-            onTimeout = {
-                toast("ESP32 не найден. Проверь рекламу и близость")
-            }
-        )
-    }
-
-    // --- scan ---
-    @SuppressLint("MissingPermission")
-    private fun startScan(onFound: (BluetoothDevice) -> Unit, onTimeout: () -> Unit) {
-        if (isScanning) return
-        stopScan()
-        isScanning = true
-
-        val filters = mutableListOf<ScanFilter>()
-        filters += ScanFilter.Builder().setServiceUuid(ParcelUuid(BleConfig.SERVICE_UUID)).build()
-        if (BleConfig.NAME_HINT.isNotBlank()) {
-            filters += ScanFilter.Builder().setDeviceName(BleConfig.NAME_HINT).build()
-        }
-        val settings = ScanSettings.Builder()
-            .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
-            .build()
-
-        val cb = object : ScanCallback() {
-            override fun onScanResult(callbackType: Int, result: ScanResult) {
-                result.device?.let { onFound(it) }
-            }
-        }
-        scanCallback = cb
-        scanner?.startScan(filters, settings, cb)
-
-        main.postDelayed({
-            if (isScanning) {
-                stopScan()
-                onTimeout()
-            }
-        }, 10_000)
-    }
+    // ---- основная логика ----------------------------------------------------
 
     @SuppressLint("MissingPermission")
-    private fun stopScan() {
-        try { scanCallback?.let { scanner?.stopScan(it) } } catch (_: Exception) {}
-        scanCallback = null
-        isScanning = false
+    private suspend fun sendTokenInternal(token: String): Boolean = opMutex.withLock {
+        require(hasBlePermissions()) { "Нет BLE-разрешений (CONNECT/SCAN или Location)" }
+        require(token.isNotEmpty()) { "Пустой токен" }
+
+        val bt = (context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager).adapter
+            ?: throw IllegalStateException("BluetoothAdapter = null")
+
+        val device = try {
+            bt.getRemoteDevice(BleConfig.DEVICE_MAC)
+        } catch (e: IllegalArgumentException) {
+            throw IllegalStateException("Неверный MAC ${BleConfig.DEVICE_MAC}")
+        }
+
+        // единый колбэк с деферами
+        val state = CallbackState()
+
+        // подключение (лучше дергать на главном потоке)
+        val g = withContext(Dispatchers.Main) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                device.connectGatt(context, false, state.cb, BluetoothDevice.TRANSPORT_LE)
+            } else {
+                @Suppress("DEPRECATION")
+                device.connectGatt(context, false, state.cb)
+            }
+        }
+        gatt = g
+
+        // ждём подключения
+        val connected = withTimeoutOrNull(BleConfig.CONNECT_TIMEOUT_MS) { state.connected.await() } ?: false
+        if (!connected) {
+            Log.w(TAG, "connect timeout/fail")
+            cleanupGatt()
+            return@withLock false
+        }
+        Log.d(TAG, "connected")
+
+        // discovery
+        if (!g.discoverServices()) {
+            Log.w(TAG, "discoverServices() returned false")
+            cleanupGatt(); return@withLock false
+        }
+        val discovered = withTimeoutOrNull(BleConfig.DISCOVER_TIMEOUT_MS) { state.servicesDiscovered.await() } ?: false
+        if (!discovered) {
+            Log.w(TAG, "services discover timeout/fail")
+            cleanupGatt(); return@withLock false
+        }
+        Log.d(TAG, "services discovered")        // MTU (нужно > 43, чтобы влезли 40 байт + заголовок/запас)
+        val mtuOk = if (g.requestMtu(100)) {
+            withTimeoutOrNull(3000) { state.mtuChanged.await() } ?: false
+        } else false
+        Log.d(TAG, "mtuOk=$mtuOk (это нормально, если false — используем дефолт 23)")
+
+        val service = g.getService(BleConfig.SERVICE_UUID)
+            ?: run { Log.w(TAG, "service not found"); cleanupGatt(); return@withLock false }
+
+        val ch = service.getCharacteristic(BleConfig.CHAR_UUID)
+            ?: run { Log.w(TAG, "characteristic not found"); cleanupGatt(); return@withLock false }
+
+        val mtu = state.lastMtu.coerceAtLeast(23)
+        val maxPayload = mtu - 3
+        val data = token.toByteArray(Charsets.UTF_8)
+        if (data.size > maxPayload) {
+            // без чанков запись не влезет, если MTU переговоры не прошли
+            Log.w(TAG, "token=${data.size} bytes > maxPayload=$maxPayload (нет увеличенного MTU)")
+            cleanupGatt(); return@withLock false
+        }
+
+        ch.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT // с подтверждением
+        ch.value = data
+
+        if (!g.writeCharacteristic(ch)) {
+            Log.w(TAG, "writeCharacteristic() returned false")
+            cleanupGatt(); return@withLock false
+        }
+        val writeOk = withTimeoutOrNull(BleConfig.WRITE_TIMEOUT_MS) { state.writeComplete.await() } ?: false
+        Log.d(TAG, "writeOk=$writeOk")
+
+        cleanupGatt()
+        return@withLock writeOk
     }
 
-    // --- connect & write ---
     @SuppressLint("MissingPermission")
-    private fun connectAndWrite(device: BluetoothDevice, token: String) {
-        gatt?.close()
-        gatt = device.connectGatt(ctx, false, object : BluetoothGattCallback() {
+    private fun cleanupGatt() {
+        try { gatt?.disconnect() } catch (_: Throwable) {}
+        try { gatt?.close() } catch (_: Throwable) {}
+        gatt = null
+    }
+
+    // ---- permissions --------------------------------------------------------
+
+    private fun hasBlePermissions(): Boolean {
+        val need = mutableListOf<String>()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            need += Manifest.permission.BLUETOOTH_CONNECT
+            need += Manifest.permission.BLUETOOTH_SCAN
+        } else {
+            need += Manifest.permission.ACCESS_FINE_LOCATION
+        }
+        return need.all {
+            ActivityCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
+        }
+    }
+
+    // ---- callback/state -----------------------------------------------------
+
+    private inner class CallbackState {
+        val connected = CompletableDeferred<Boolean>()
+        val servicesDiscovered = CompletableDeferred<Boolean>()
+        val mtuChanged = CompletableDeferred<Boolean>()
+        val writeComplete = CompletableDeferred<Boolean>()
+        var lastMtu: Int = 23
+
+        val cb = object : BluetoothGattCallback() {
             override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
+                Log.d(TAG, "onConnectionStateChange s=$status state=$newState")
+                if (status != BluetoothGatt.GATT_SUCCESS) {
+                    if (!connected.isCompleted) connected.complete(false)
+                    return
+                }
                 if (newState == BluetoothProfile.STATE_CONNECTED) {
-                    gatt.discoverServices()
+                    connected.complete(true)
                 } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-                    gatt.close()
+                    if (!connected.isCompleted) connected.complete(false)
                 }
             }
 
             override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
-                if (status != BluetoothGatt.GATT_SUCCESS) {
-                    toast("Ошибка discover: $status"); return
-                }
-                val svc = gatt.getService(BleConfig.SERVICE_UUID)
-                val ch = svc?.getCharacteristic(BleConfig.CHAR_UUID)
-                if (ch == null) { toast("Characteristic не найдена"); return }
-
-                val value = token.toByteArray(Charsets.UTF_8)
-                val props = ch.properties
-                ch.writeType = if (props and BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE != 0)
-                    BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
-                else
-                    BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-
-                val ok = if (Build.VERSION.SDK_INT >= 33) {
-                    gatt.writeCharacteristic(ch, value, ch.writeType) == BluetoothStatusCodes.SUCCESS
-                } else {
-                    ch.value = value
-                    gatt.writeCharacteristic(ch)
-                }
-                if (!ok) toast("Не удалось начать запись")
+                Log.d(TAG, "onServicesDiscovered s=$status")
+                servicesDiscovered.complete(status == BluetoothGatt.GATT_SUCCESS)
             }
-
-            override fun onCharacteristicWrite(
+            override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
+                Log.d(TAG, "onMtuChanged mtu=$mtu s=$status")
+                if (status == BluetoothGatt.GATT_SUCCESS) {
+                    lastMtu = mtu
+                    mtuChanged.complete(true)
+                } else {
+                    mtuChanged.complete(false)
+                }
+            }            override fun onCharacteristicWrite(
                 gatt: BluetoothGatt,
                 characteristic: BluetoothGattCharacteristic,
                 status: Int
             ) {
-                if (status == BluetoothGatt.GATT_SUCCESS) {
-                    toast("Токен отправлен по BLE")
-                } else {
-                    toast("Ошибка записи: $status")
-                }
-                // мягко закрываем соединение
-                main.postDelayed({ gatt.disconnect() }, 300)
+                Log.d(TAG, "onCharacteristicWrite s=$status")
+                writeComplete.complete(status == BluetoothGatt.GATT_SUCCESS)
             }
-        }, BluetoothDevice.TRANSPORT_LE)
+        }
     }
-
-    private fun toast(msg: String) =
-        Toast.makeText(ctx, msg, Toast.LENGTH_SHORT).show()
 }
-

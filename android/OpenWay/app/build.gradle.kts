@@ -17,7 +17,7 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        buildConfigField("String", "DEMO_DRF_TOKEN", "\"3f3374c6439b2f3e2501d4d14eebb08e45155195\"")
+        buildConfigField("String", "DEMO_DRF_TOKEN", "\"edee5ecede95c8089112efe70a24b0d1fef5d3c4\"")
         buildConfigField("String", "SERVICE_UUID", "\"4fafc201-1fb5-459e-8fcc-c5c9c331914b\"")
         buildConfigField("String", "CHAR_UUID", "\"beb5483e-36e1-4688-b7f5-ea07361b26a8\"")
         buildConfigField("String", "BLE_NAME_HINT", "\"OpenWay ESP32\"")
