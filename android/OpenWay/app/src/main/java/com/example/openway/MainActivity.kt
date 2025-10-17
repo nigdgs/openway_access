@@ -17,6 +17,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -35,6 +36,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -127,7 +129,22 @@ fun AppNav() {
 
 @Composable
 fun MainScreen(navController: NavController) {
-    var flagTheme by remember { mutableStateOf(false) }
+    var flagTheme by remember { mutableStateOf(true) }
+
+
+    val context = LocalContext.current
+    val activity = context as? ComponentActivity
+
+    // Изменяем цвет иконок в статус-баре
+    LaunchedEffect(flagTheme) {
+        if (activity != null) {
+            val window = activity.window
+            WindowInsetsControllerCompat(window, window.decorView).apply {
+                isAppearanceLightStatusBars = if (flagTheme) false else true
+            }
+        }
+    }
+
 
     val boxColor by animateColorAsState(
         targetValue = if (flagTheme) colorResource(R.color.dark_theme) else Color.White,
@@ -140,8 +157,8 @@ fun MainScreen(navController: NavController) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .systemBarsPadding()
             .background(boxColor)
+            //.padding(35.dp) // отступ
     ) {
         Content(flagTheme, navController)
 
@@ -150,7 +167,7 @@ fun MainScreen(navController: NavController) {
             onIcButton = { flagTheme = !flagTheme },
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .padding(12.dp)
+                .padding(45.dp)
         )
     }
 }
@@ -161,7 +178,9 @@ fun PhotoIconToggleButton(
     onIcButton: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    IconButton(onClick = onIcButton, modifier = modifier.size(40.dp)) {
+    IconButton(onClick = onIcButton, modifier = modifier
+        .size(40.dp)
+        .offset(x = 20.dp)) {
         Crossfade(targetState = flagIcButton, animationSpec = tween(900)) { on ->
             Image(
                 painter = painterResource(id = if (on) R.drawable.dark_theme else R.drawable.light_theme),
@@ -183,9 +202,9 @@ fun Content(flagTheme: Boolean, navController: NavController) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Top
     ) {
-        Spacer(Modifier.height(250.dp))
+        Spacer(Modifier.height(225.dp))
         TextButtonText(flagTheme)
-        Spacer(Modifier.height(150.dp))
+        Spacer(Modifier.height(250.dp))
         AccSection(flagTheme, navController)
     }
 }
@@ -210,7 +229,7 @@ fun TextButtonText(flagTheme: Boolean) {
         Spacer(Modifier.height(50.dp))
 
         // Нажатие на большую кнопку -> проверяем пермишены и шлём токен
-        NfcButton(
+        BluetoothButton(
             flagNfcButton = flagNfcButton,
             flagTheme = flagTheme,
             onNfcButton = {
@@ -223,14 +242,14 @@ fun TextButtonText(flagTheme: Boolean) {
 
         Spacer(Modifier.height(30.dp))
         Text(
-                text = if (flagNfcButton) "NFC включен" else "NFC отключен",
+                text = if (flagNfcButton) "BLE активен" else "BLE неактивен",
         color = if (flagTheme) Color.White else Color.Black
         )
     }
 }
 
 @Composable
-fun NfcButton(flagNfcButton: Boolean, flagTheme: Boolean, onNfcButton: () -> Unit) {
+fun BluetoothButton(flagNfcButton: Boolean, flagTheme: Boolean, onNfcButton: () -> Unit) {
     val buttonColor by animateColorAsState(
         targetValue = if (flagNfcButton) {
             colorResource(id = R.color.nfc_button_on)
@@ -272,69 +291,116 @@ fun NfcButton(flagNfcButton: Boolean, flagTheme: Boolean, onNfcButton: () -> Uni
 @Composable
 fun AccSection(flagTheme: Boolean, navController: NavController) {
     val cardColor by animateColorAsState(
-        targetValue = if (flagTheme) Color.DarkGray else colorResource(R.color.inf_card),
+        targetValue = if (flagTheme) Color.Gray else Color.White,
+
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioNoBouncy,
             stiffness = Spring.StiffnessLow
         )
     )
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(5.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Top
+            .padding(horizontal = 10.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(
+                color = if (flagTheme) Color.DarkGray else colorResource(R.color.inf_card),
+                shape = RoundedCornerShape(20.dp)
+            )
     ) {
-        Text("Личный кабинет", color = if (flagTheme) Color.White else Color.Black, fontSize = 20.sp)
-        Spacer(Modifier.height(16.dp))
-        Image(
-            contentDescription = "Аватарка",
+
+        Column(
             modifier = Modifier
-                .size(130.dp)
-                .clip(CircleShape)
-                .background(cardColor),
-            painter = painterResource(id = R.drawable.ic_launcher_background),
-            contentScale = ContentScale.Crop,
-        )
-        Spacer(Modifier.height(16.dp))
-
-        Card(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(cardColor)
+                .fillMaxWidth()
+                .padding(5.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Top
         ) {
-            Column(Modifier.padding(16.dp)) {
-                Text("Имя и Фамилия", color = Color.Gray, fontSize = 12.sp)
-                Spacer(Modifier.height(5.dp))
-                Text("Андрей Арустамян", color = if (flagTheme) Color.White else Color.Black, fontSize = 17.sp)
+            Spacer(Modifier.height(7.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth() // Прямоугольник будет на всю ширину экрана
+                    .height(20.dp) // Установите желаемую высоту прямоугольника
+                    .padding(horizontal = 125.dp)
+                    .background(
+                        color = if (flagTheme) Color.Gray else Color.White, // Цвет фона прямоугольника
+                        shape = RoundedCornerShape(10.dp) // Если хотите, добавьте закругленные углы
+                    )
+            )
+
+            Spacer(Modifier.height(50.dp))
+
+            Image(
+                contentDescription = "Аватарка",
+                modifier = Modifier
+                    .size(115.dp)
+                    .clip(CircleShape)
+                    .background(cardColor),
+                painter = painterResource(id = R.drawable.person),
+                contentScale = ContentScale.Crop,
+                colorFilter = if (flagTheme) ColorFilter.tint(Color.White) else ColorFilter.tint(Color.Black)
+            )
+
+            Spacer(Modifier.height(20.dp))
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp, horizontal = 15.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(cardColor),
+            ) {
+                Column(Modifier.padding(16.dp)) {
+                    Text("Имя и Фамилия", color = if (flagTheme) Color.DarkGray else Color.Gray, fontSize = 12.sp)
+                    Spacer(Modifier.height(5.dp))
+                    Text(
+                        "Андрей Арустамян",
+                        color = if (flagTheme) Color.White else Color.Black,
+                        fontSize = 15.sp
+                    )
+                }
             }
-        }
 
-        Card(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(cardColor)
-        ) {
-            Column(Modifier.padding(16.dp)) {
-                Text("Должность", color = Color.Gray, fontSize = 12.sp)
-                Spacer(Modifier.height(5.dp))
-                Text("Генеральный директор", color = if (flagTheme) Color.White else Color.Black, fontSize = 17.sp)
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp, horizontal = 15.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(cardColor)
+            ) {
+                Column(Modifier.padding(16.dp)) {
+                    Text("Должность", color = if (flagTheme) Color.DarkGray else Color.Gray, fontSize = 12.sp)
+                    Spacer(Modifier.height(5.dp))
+                    Text(
+                        "Генеральный директор",
+                        color = if (flagTheme) Color.White else Color.Black,
+                        fontSize = 15.sp
+                    )
+                }
             }
-        }
-        Card(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(cardColor)
-        ) {
-        Column(Modifier.padding(16.dp)) {
-            Text("Логин", color = Color.Gray, fontSize = 12.sp)
-            Spacer(Modifier.height(5.dp))
-            Text("andrey", color = if (flagTheme) Color.White else Color.Black, fontSize = 15.sp)
-        }
-    }
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp, horizontal = 15.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(cardColor)
+            ) {
+                Column(Modifier.padding(16.dp)) {
+                    Text("Логин", color = if (flagTheme) Color.DarkGray else Color.Gray, fontSize = 12.sp)
+                    Spacer(Modifier.height(5.dp))
+                    Text(
+                        "andrey",
+                        color = if (flagTheme) Color.White else Color.Black,
+                        fontSize = 15.sp
+                    )
+                }
+            }
 
-        exitAcc(navController)
+            exitAcc(navController)
+
+            Spacer(Modifier.height(1.dp))
+        }
     }
 }
 
@@ -342,7 +408,9 @@ fun AccSection(flagTheme: Boolean, navController: NavController) {
 fun exitAcc(navController: NavController) {
     Button(
         onClick = { navController.navigate("loginScreen") },
-        modifier = Modifier.fillMaxWidth().padding(16.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(41.dp),
         shape = RoundedCornerShape(12.dp),
         colors = ButtonDefaults.buttonColors(colorResource(R.color.exit_button_light_theme))
     ) {
@@ -358,3 +426,4 @@ fun exitAcc(navController: NavController) {
         }
     }
 }
+

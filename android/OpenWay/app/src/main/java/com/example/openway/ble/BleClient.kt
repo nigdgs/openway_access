@@ -11,6 +11,7 @@ import androidx.core.app.ActivityCompat
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.io.IOException
 import java.util.concurrent.atomic.AtomicBoolean
 
 class BleClient(private val context: Context) {
@@ -39,9 +40,14 @@ class BleClient(private val context: Context) {
             val res = runCatching { sendTokenInternal(token) }
             withContext(Dispatchers.Main) {
                 res.onSuccess { ok ->
-                    onResult(ok, if (ok) "OK" else "Не удалось записать характеристику")
+                    onResult(ok, if (!ok) "Подойдите ближе к устройству." else "")
                 }.onFailure { e ->
-                    onResult(false, e.message ?: "Ошибка")
+                    val errorMessage = when (e) {
+                        is SecurityException -> "Отсутствуют разрешения для работы с Bluetooth. Пожалуйста, предоставьте все необходимые разрешения."
+                        is IOException -> "Ошибка при подключении или передаче данных через Bluetooth. Проверьте устройство и попробуйте снова."
+                        else -> e.message ?: "Произошла неизвестная ошибка."
+                    }
+                    onResult(false, errorMessage)
                 }
             }
         }
@@ -49,18 +55,25 @@ class BleClient(private val context: Context) {
 
     /** Закрыть BLE (вызывайте из onDestroy Activity). */
     fun close() {
-        if (isClosed.getAndSet(true)) return
-        try { gatt?.disconnect() } catch (_: Throwable) {}
-        try { gatt?.close() } catch (_: Throwable) {}
-        gatt = null
-        scope.cancel()
+        if (isClosed.getAndSet(true)) {
+            try {
+                gatt?.disconnect()
+            } catch (_: Throwable) {
+            }
+            try {
+                gatt?.close()
+            } catch (_: Throwable) {
+            }
+            gatt = null
+            scope.cancel()
+        }
     }
 
     // ---- основная логика ----------------------------------------------------
 
     @SuppressLint("MissingPermission")
     private suspend fun sendTokenInternal(token: String): Boolean = opMutex.withLock {
-        require(hasBlePermissions()) { "Нет BLE-разрешений (CONNECT/SCAN или Location)" }
+        require(hasBlePermissions()) { "Нет разрешения на использования bluetooth" }
         require(token.isNotEmpty()) { "Пустой токен" }
 
         val bt = (context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager).adapter
