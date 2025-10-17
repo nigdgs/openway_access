@@ -17,7 +17,6 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        buildConfigField("String", "DEMO_DRF_TOKEN", "\"edee5ecede95c8089112efe70a24b0d1fef5d3c4\"")
         buildConfigField("String", "SERVICE_UUID", "\"4fafc201-1fb5-459e-8fcc-c5c9c331914b\"")
         buildConfigField("String", "CHAR_UUID", "\"beb5483e-36e1-4688-b7f5-ea07361b26a8\"")
         buildConfigField("String", "BLE_NAME_HINT", "\"OpenWay ESP32\"")
@@ -30,6 +29,12 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+        }
+        debug {
+            // Base URL for local backend via Android emulator
+            buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:8001/\"")
+            // Demo token ONLY in debug; do not ship in release
+            buildConfigField("String", "DEMO_DRF_TOKEN", "\"edee5ecede95c8089112efe70a24b0d1fef5d3c4\"")
         }
     }
     compileOptions {
@@ -46,7 +51,16 @@ android {
 }
 
 dependencies {
-
+    // Coroutines
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+    // Retrofit + OkHttp + Moshi
+    implementation("com.squareup.retrofit2:retrofit:2.11.0")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+    implementation("com.squareup.retrofit2:converter-moshi:2.11.0")
+    implementation("com.squareup.moshi:moshi-kotlin:1.15.1")
+    // Secure storage (if using EncryptedSharedPreferences)
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)

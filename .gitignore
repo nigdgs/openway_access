@@ -61,6 +61,25 @@ local_settings.py
 db.sqlite3
 db.sqlite3-journal
 
+# Python/Django (repo janitor additions)
+backend/.venv/
+**/__pycache__/
+*.py[cod]
+media/
+staticfiles/
+
+# Docker/Compose
+backend/.env
+.env
+
+# Android
+**/build/
+**/.gradle/
+**/.idea/
+
+# OS/Logs
+*.DS_Store
+
 # Flask stuff:
 instance/
 .webassets-cache

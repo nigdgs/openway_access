@@ -1,3 +1,100 @@
+# OpenWay — Backend Status (2025-10-15)
+
+## Резюме
+- Подтверждено кодом: Django 5.0.x, DRF 3.15.2, схема URL `core.urls` с `/health`, `/ready`, `/schema`, `/docs`, `/admin`, API корень `/api/` → `/api/v1/*`.
+- Работают (по коду и тестам): `POST /api/v1/access/verify` (всегда 200, ALLOW/DENY), токен-логин `POST /api/v1/auth/token`, устройства: `POST /devices/register`, `GET /devices/me`, `POST /devices/revoke`.
+- Заявлено пользователем: BLE/NFC — НЕ НАЙДЕНО/НЕ РЕАЛИЗОВАНО в бэкенде.
+- Локальный запуск с установкой зависимостей в этой среде не выполнен: ошибка SSL при установке пакетов из PyPI (см. логи ниже). Без пакетов `django`, `djangorestframework` миграции/сервер не стартуют.
+- Логирование: JSON-логгер для prod, middleware добавляет `X-Request-ID` и метрики запроса.
+- Throttling: `ScopedRateThrottle` для verify с `ACCESS_VERIFY_RATE` (по умолчанию 30/second).
+
+## Эндпоинты
+| Метод | Путь | View | Auth/Perm | Throttle | Вход | Выход | Статусы |
+| POST | /api/v1/access/verify | AccessVerifyView | None/AllowAny | scope=access_verify | {gate_id, token} | {decision, reason[, duration_ms]} | 200 всегда |
+| POST | /api/v1/auth/token | obtain_auth_token | None/AllowAny | — | form: username, password | {token} | 200/400 |
+| POST | /api/v1/devices/register | DeviceRegisterView | TokenAuth/IsAuthenticated | — | {rotate?, android_device_id?} | {device_id, token, android_device_id, qr_payload} | 200 |
+| GET | /api/v1/devices/me | DeviceListMeView | TokenAuth/IsAuthenticated | — | — | [{id, android_device_id, is_active, token_preview}] | 200 |
+| POST | /api/v1/devices/revoke | DeviceRevokeView | TokenAuth/IsAuthenticated | — | {device_id? | android_device_id?} | {device_id, is_active} | 200/404 |
+| GET | /health,/healthz | function views | AllowAny | — | — | {status:"ok"} | 200 |
+| GET | /ready,/readyz | function views | AllowAny | — | — | {status:"ready"|"not-ready"} | 200/503 |
+| GET | /schema | SpectacularAPIView | AllowAny | — | — | OpenAPI JSON | 200 |
+| GET | /docs | SpectacularSwaggerView | AllowAny | — | — | Swagger UI | 200 |
+| ANY | /admin/ | Django admin | staff | — | — | HTML | 200 |
+
+### /api/v1/access/verify — контракт
+- Вход: JSON `{ "gate_id": str, "token": str }` (token — DRF Token пользователя)
+- Выход (всегда 200): `{ "decision": "ALLOW"|"DENY", "reason": <см. ниже>, "duration_ms"?: int }`
+- Возможные reason: `OK`, `UNKNOWN_GATE`, `TOKEN_INVALID`, `NO_PERMISSION`, `INVALID_REQUEST`, `RATE_LIMIT` (+ объявлены `DEVICE_*`, но не используются).
+- Throttle: scope `access_verify`, ставка из `ACCESS_VERIFY_RATE` (default `30/second`). При превышении — 200 + `DENY/RATE_LIMIT` и запись `AccessEvent`.
+
+## Модели и миграции
+- apps.access:
+  - AccessPoint(code unique, name, location)
+  - AccessPermission(access_point FK, user FK null, group FK null, allow bool). Ограничения: `unique_together(access_point,user,group)`, check (user or group not null), индексы (access_point,user) и (access_point,group)
+  - AccessEvent(access_point FK null SET_NULL, user FK null SET_NULL, device_id int null, decision, reason, raw JSON, created_at)
+- apps.devices:
+  - Device(user FK, name, android_device_id, totp_secret, auth_token unique, is_active, created_at)
+- apps.accounts:
+  - PasswordHistory(user FK, password hash, created_at)
+- Миграции: присутствуют для всех приложений (access: 0001, 0002; devices: 0001–0003; accounts: 0001). Неприменённость не проверялась из-за невозможности запуска миграций (нет зависимостей `django`).
+
+## Настройки и безопасность
+- Settings модули: `accessproj.settings.base|dev|prod|test|logging_json`.
+- DEBUG: base=False, dev=True, prod=False, test=True.
+- ALLOWED_HOSTS: base=`DJANGO_ALLOWED_HOSTS` или `*` по умолчанию; dev=`*`; prod=env.
+- DATABASES: base=Postgres (env: POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD, DB_HOST, DB_PORT), dev/test=SQLite.
+- CORS: `CORS_ALLOWED_ORIGINS` из env (default `http://localhost:3000,http://localhost:8080`), `CORS_ALLOW_CREDENTIALS=True`.
+- DRF DEFAULTS: TokenAuthentication, IsAuthenticated; Throttles: Scoped, User, Anon; Rates: access_verify=`ACCESS_VERIFY_RATE` (default 30/second), user=1000/day, anon=100/day.
+- LOGGING: prod JSON formatter/console; dev простой console.
+- SECRET_KEY: из env `DJANGO_SECRET_KEY` (по умолчанию «dev-secret» в base; prod требует переопределение).
+- Обязательные env имена (без значений): `DJANGO_SETTINGS_MODULE`, `DJANGO_SECRET_KEY` (prod), `DJANGO_ALLOWED_HOSTS` (prod), `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `DB_HOST`, `DB_PORT`, `ACCESS_VERIFY_RATE`, `CORS_ALLOWED_ORIGINS`.
+
+## Сборка и запуск локально
+Ниже команды корректны для проекта, но установка зависимостей в текущей среде не удалась (SSL к PyPI). При рабочем доступе в интернет:
+```
+python -m venv .venv && source .venv/bin/activate
+pip install -r backend/requirements.txt
+export DJANGO_SETTINGS_MODULE=accessproj.settings.dev
+python backend/manage.py migrate
+python backend/manage.py runserver 127.0.0.1:8000
+```
+
+Проверка verify (после получения user token через `/api/v1/auth/token`):
+```
+curl -s -X POST http://127.0.0.1:8000/api/v1/access/verify \
+  -H "Content-Type: application/json" \
+  -d '{"gate_id":"front_door","token":"TEST_TOKEN"}' | jq
+```
+
+## Docker/Compose
+- Файл: `backend/compose.yml`. Сервисы: `db` (Postgres 16-alpine, порт 5433:5432), `web` (порт 8001:8000, том `./:/app`, env_file `.env`).
+- Точки входа: `scripts/entrypoint.sh` (ожидание БД, migrate, collectstatic, запуск gunicorn в prod, runserver в dev).
+- Healthchecks: db `pg_isready`, web `GET /healthz`.
+
+## Известные проблемы
+- Установка зависимостей из PyPI в текущей среде: SSL ошибка (`SSLCertVerificationError OSStatus -26276`), из-за чего `pip install -r requirements.txt` не завершается; далее `ModuleNotFoundError: No module named 'django'` при попытке `manage.py`.
+- README утверждает, что `/api/v1/access/verify` использует «user_session_token» из `/api/v1/auth/token`, однако реализация использует `rest_framework.authtoken.models.Token` (40-hex) — это совпадает. BLE/NFC — НЕ НАЙДЕНО/НЕ РЕАЛИЗОВАНО.
+
+## Ближайшие шаги (1–2 недели)
+1) Починить установку и запуск (S): Настроить доверенный корневой сертификат/репозиторий PyPI или локальный кеш PyPI; проверить что `pip install` проходит. Готовность: успешная установка и `pytest -q` локально/в докере.
+2) E2E-скрипт запуска dev (S): Добавить `make up` + smoke-тест `make test` в CI локально/контейнерно. Готовность: зелёный прогон smoke-тестов.
+3) Расширить мониторинг/логи (M): Включить JSON-логи в dev, добавить кореляцию user/device/gate в `AccessLogMiddleware`. Готовность: структурные логи с нужными полями.
+4) Полнота API-доков (S): Проверить `/schema` и сгенерировать актуальный `schema.yaml` (есть цель в Makefile). Готовность: актуальный `backend/schema.yaml` и открывающиеся `/docs`.
+5) Твёрдые ограничения безопасности prod (M): Проверить обязательные env в prod (SECRET_KEY, ALLOWED_HOSTS), установить строгий `CORS_ALLOWED_ORIGINS`. Готовность: успешный запуск `prod` профиля и проверка заголовков.
+
+---
+
+### Логи ошибок запуска
+```
+pip install -r requirements.txt
+ERROR: Could not find a version that satisfies the requirement Django~=5.0.14 ...
+Caused by SSLError(SSLCertVerificationError('OSStatus -26276'))
+```
+```
+python manage.py migrate
+ModuleNotFoundError: No module named 'django'
+```
+
 # Backend Status Report — OpenWay Access Control
 
 **Дата:** 2025-10-04  

@@ -19,3 +19,10 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Retrofit & Moshi (if used)
+-dontwarn okio.**
+-dontwarn javax.annotation.**
+-keep class com.squareup.moshi.** { *; }
+-keep class com.squareup.okhttp3.** { *; }
+-keep class com.squareup.retrofit2.** { *; }

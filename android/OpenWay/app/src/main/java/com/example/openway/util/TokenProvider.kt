@@ -9,7 +9,10 @@ object TokenProvider {
 
     fun getToken(context: Context): String {
         val sp = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        return sp.getString(KEY, null) ?: BuildConfig.DEMO_DRF_TOKEN
+        val saved = sp.getString(KEY, null)
+        if (saved != null) return saved
+        // Debug-only fallback; never ship demo token in release
+        return if (BuildConfig.DEBUG) BuildConfig.DEMO_DRF_TOKEN else ""
     }
 
     fun saveToken(context: Context, token: String) {
