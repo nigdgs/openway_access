@@ -34,6 +34,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -57,14 +59,18 @@ import com.example.openway.util.humanizeNetworkError
 @Composable
 fun LoginScreen(navController: NavController) {
 
-    val context = LocalContext.current
-    val activity = context as? ComponentActivity
+    val isLoginFocused = remember { mutableStateOf(false) }
+    val isPasswordFocused = remember { mutableStateOf(false) }
+
+
+    val context_Status_Bar = LocalContext.current
+    val activity = context_Status_Bar as? ComponentActivity
 
     // Изменяем цвет иконок в статус-баре
     if (activity != null) {
         val window = activity.window
         WindowInsetsControllerCompat(window, window.decorView).apply {
-            isAppearanceLightStatusBars = false
+            isAppearanceLightStatusBars = true
         }
     }
 
@@ -107,7 +113,7 @@ fun LoginScreen(navController: NavController) {
     Box(
         modifier = Modifier
             .fillMaxSize() // растягиваем на весь экран
-            .background(colorResource(R.color.dark_theme)) // цвет фона
+            .background(Color.White) // цвет фона
             .padding(16.dp) // отступы
     ) {
         // Колонки
@@ -120,7 +126,7 @@ fun LoginScreen(navController: NavController) {
             Text(
                 text = "Добро пожаловать",
                 fontSize = 22.sp,
-                color = Color.White
+                color = Color.Black
             )
 
             Spacer(Modifier.height(20.dp)) // отступ
@@ -148,26 +154,27 @@ fun LoginScreen(navController: NavController) {
                 ),
 
                 textStyle = LocalTextStyle.current.copy( // стиль текста ввода
-                    color = Color.White, // цвет
+                    color = Color.Black, // цвет
                     fontSize = 16.sp // рахмер
                 ),
 
+
                 leadingIcon = {
                     Icon( // иконка пользователя
-                        painter = painterResource(R.drawable.person),
+                        painter = painterResource(R.drawable.people_1_2),
                         contentDescription = "Логин",
                         modifier = Modifier.size(25.dp),
-                        tint = Color.Gray
+                        tint = if (isLoginFocused.value) Color.Black else Color.Gray
                     )
                 },
-
                 modifier = Modifier
                     .fillMaxWidth() // растягиваем на все ширину
-                    .padding(horizontal = 10.dp, vertical = 2.dp),
+                    .padding(horizontal = 10.dp, vertical = 2.dp)
+                    .onFocusChanged { isLoginFocused.value = it.isFocused }, // отслеживаем фокус для цвета иконок
                 shape = RoundedCornerShape(13.dp), // cкругление
 
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color.White, // активный цвет контура
+                    focusedBorderColor = Color.Black, // активный цвет контура
                     unfocusedBorderColor = Color.Gray, // не активный цвет контура
                 )
             )
@@ -207,7 +214,7 @@ fun LoginScreen(navController: NavController) {
                 ),
 
                 textStyle = LocalTextStyle.current.copy( // стиль текста ввода
-                    color = Color.White, // цвет
+                    color = Color.Black, // цвет
                     fontSize = 16.sp // рахмер
                 ),
 
@@ -216,7 +223,7 @@ fun LoginScreen(navController: NavController) {
                         painter = painterResource(R.drawable.lock),
                         contentDescription = "Логин",
                         modifier = Modifier.size(25.dp),
-                        tint = Color.Gray
+                        tint = if (isPasswordFocused.value) Color.Black else Color.Gray
                     )
                 },
 
@@ -229,18 +236,19 @@ fun LoginScreen(navController: NavController) {
                                 else R.drawable.eye
                             ),
                             contentDescription = "Показать/скрыть пароль",
-                            tint = colorResource(R.color.icons)
+                            tint = if (isPasswordFocused.value) Color.Black else Color.Gray
                         )
                     }
                 },
 
                 modifier = Modifier
                     .fillMaxWidth() // растягиваем на все ширину
-                    .padding(horizontal = 10.dp, vertical = 2.dp),
+                    .padding(horizontal = 10.dp, vertical = 2.dp)
+                    .onFocusChanged { isPasswordFocused.value = it.isFocused }, // отслеживаем фокус для цвета иконок
                 shape = RoundedCornerShape(13.dp), // cкругление
 
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color.White, // активный цвет контура
+                    focusedBorderColor = Color.Black, // активный цвет контура
                     unfocusedBorderColor = Color.Gray, // не активный цвет контура
                 )
             )
@@ -256,8 +264,8 @@ fun LoginScreen(navController: NavController) {
                     .height(48.dp), // высота кнопки
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.White,
-                    contentColor = Color.Black
+                    containerColor = Color.Black,
+                    contentColor = Color.White
                 )
             ) {
                 Text(if (isLoading) "Входим…" else "Войти", fontSize = 16.sp)

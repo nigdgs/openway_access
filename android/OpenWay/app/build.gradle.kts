@@ -32,7 +32,7 @@ android {
         }
         debug {
             // LAN debug endpoint (replace <LAN_IP> with your host's LAN IP, e.g., 192.168.1.100)
-            buildConfigField("String", "API_BASE_URL", "\"http://<LAN_IP>:8001/\"")
+            buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:8001/\"")
             // Demo token ONLY in debug; do not ship in release
             buildConfigField("String", "DEMO_DRF_TOKEN", "\"edee5ecede95c8089112efe70a24b0d1fef5d3c4\"")
         }
