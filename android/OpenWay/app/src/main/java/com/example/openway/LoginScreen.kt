@@ -24,11 +24,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
@@ -39,6 +42,9 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.NavController
+import kotlinx.coroutines.launch
+import com.example.openway.api.ApiFactory
+import com.example.openway.data.AuthRepository
 
 
 @Composable
@@ -46,6 +52,10 @@ fun LoginScreen(navController: NavController) {
     // Состояния логина и пароля
     var login by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
+    var errorText by rememberSaveable { mutableStateOf("") }
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val authRepo = remember { AuthRepository(ApiFactory.authApi) }
 
     // Состояние показывать ли пароль в виде текста или точками
     var flagPassword by rememberSaveable { mutableStateOf(false) }
@@ -185,7 +195,15 @@ fun LoginScreen(navController: NavController) {
 
             Button(
                 onClick = {
-                    navController.navigate("mainScreen") // проверка что навигация работает
+                    errorText = ""
+                    scope.launch {
+                        val res = authRepo.login(context, login, password)
+                        res.onSuccess {
+                            navController.navigate("mainScreen")
+                        }.onFailure { e ->
+                            errorText = e.message ?: "Ошибка авторизации"
+                        }
+                    }
                 },
                 modifier = Modifier
                     .fillMaxWidth() // кнопка на всю ширину
@@ -198,6 +216,10 @@ fun LoginScreen(navController: NavController) {
                 )
             ) {
                 Text("Войти", fontSize = 16.sp) // надпись на кнопке
+            }
+            if (errorText.isNotBlank()) {
+                Spacer(Modifier.height(8.dp))
+                Text(text = errorText, color = Color.Red, fontSize = 14.sp)
             }
         }
     }

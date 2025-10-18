@@ -41,6 +41,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.openway.ble.BleClient
 import com.example.openway.util.TokenProvider
+import com.example.openway.api.ApiFactory
+import com.example.openway.data.VerifyRepository
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
@@ -94,7 +97,9 @@ class MainActivity : ComponentActivity() {
         } else {
             reallySendToken(pendingToken)
         }
-    }    private fun reallySendToken(token: String?) {
+    }
+
+    private fun reallySendToken(token: String?) {
         if (token.isNullOrBlank()) {
             Toast.makeText(this, "Пустой токен", Toast.LENGTH_SHORT).show()
             Log.d(TAG, "empty token")
@@ -128,6 +133,9 @@ fun AppNav() {
 @Composable
 fun MainScreen(navController: NavController) {
     var flagTheme by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val verifyRepo = remember { VerifyRepository(ApiFactory.verifyApi) }
 
     val boxColor by animateColorAsState(
         targetValue = if (flagTheme) colorResource(R.color.dark_theme) else Color.White,
@@ -152,6 +160,32 @@ fun MainScreen(navController: NavController) {
                 .align(Alignment.TopEnd)
                 .padding(12.dp)
         )
+
+        // Кнопка Verify (front_door) — минимальная интеграция
+        Button(
+            onClick = {
+                val token = TokenProvider.getToken(context)
+                if (token.isBlank()) {
+                    Toast.makeText(context, "Нет токена. Сначала войдите.", Toast.LENGTH_SHORT).show()
+                } else {
+                    scope.launch {
+                        val result = verifyRepo.verify("front_door", token)
+                        result.onSuccess { resp ->
+                            Toast.makeText(context, "VERIFY: ${resp.decision}/${resp.reason}", Toast.LENGTH_SHORT).show()
+                        }.onFailure { e ->
+                            Toast.makeText(context, "Ошибка verify: ${e.message}", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(16.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black)
+        ) {
+            Text("Verify (front_door)")
+        }
     }
 }
 
