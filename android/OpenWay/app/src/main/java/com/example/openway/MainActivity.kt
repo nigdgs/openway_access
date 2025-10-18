@@ -122,7 +122,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun AppNav() {
     val nav = rememberNavController()
-    NavHost(navController = nav, startDestination = "mainScreen") {
+    NavHost(navController = nav, startDestination = "LoginScreen") {
         composable("mainScreen") { MainScreen(nav) }
         composable("loginScreen") { LoginScreen(nav) }
     }
