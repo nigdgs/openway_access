@@ -1,18 +1,18 @@
 package com.example.openway.util
 
 import android.content.Context
-import com.example.openway.BuildConfig
 
 object TokenProvider {
     private const val PREFS = "openway_prefs"
     private const val KEY = "user_token"
 
+    /**
+     * Returns the stored auth token or empty string if none.
+     * No debug fallback — empty means "not logged in".
+     */
     fun getToken(context: Context): String {
         val sp = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        val saved = sp.getString(KEY, null)
-        if (saved != null) return saved
-        // Debug-only fallback; never ship demo token in release
-        return if (BuildConfig.DEBUG) BuildConfig.DEMO_DRF_TOKEN else ""
+        return sp.getString(KEY, "") ?: ""
     }
 
     fun saveToken(context: Context, token: String) {
@@ -26,7 +26,11 @@ object TokenProvider {
             .edit().remove(KEY).apply()
     }
 
-    /** Check if user has a valid token stored. */
-    fun hasToken(context: Context): Boolean = getToken(context).isNotBlank()
+    /** True only when a real token is stored in prefs. */
+    fun hasToken(context: Context): Boolean {
+        val sp = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val saved = sp.getString(KEY, null)
+        return !saved.isNullOrBlank()
+    }
 }
 
