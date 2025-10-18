@@ -19,5 +19,14 @@ object TokenProvider {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit().putString(KEY, token).apply()
     }
+
+    /** Clears stored auth token. Used on logout. */
+    fun clearToken(context: Context) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit().remove(KEY).apply()
+    }
+
+    /** Check if user has a valid token stored. */
+    fun hasToken(context: Context): Boolean = getToken(context).isNotBlank()
 }
 

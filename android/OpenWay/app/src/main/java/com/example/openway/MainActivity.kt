@@ -43,6 +43,7 @@ import com.example.openway.ble.BleClient
 import com.example.openway.util.TokenProvider
 import com.example.openway.api.ApiFactory
 import com.example.openway.data.VerifyRepository
+import com.example.openway.util.humanizeNetworkError
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -136,6 +137,7 @@ fun MainScreen(navController: NavController) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val verifyRepo = remember { VerifyRepository(ApiFactory.verifyApi) }
+    var isVerifying by remember { mutableStateOf(false) }
 
     val boxColor by animateColorAsState(
         targetValue = if (flagTheme) colorResource(R.color.dark_theme) else Color.White,
@@ -163,17 +165,24 @@ fun MainScreen(navController: NavController) {
 
         // Кнопка Verify (front_door) — минимальная интеграция
         Button(
+            enabled = !isVerifying,
             onClick = {
                 val token = TokenProvider.getToken(context)
                 if (token.isBlank()) {
                     Toast.makeText(context, "Нет токена. Сначала войдите.", Toast.LENGTH_SHORT).show()
                 } else {
                     scope.launch {
-                        val result = verifyRepo.verify("front_door", token)
-                        result.onSuccess { resp ->
-                            Toast.makeText(context, "VERIFY: ${resp.decision}/${resp.reason}", Toast.LENGTH_SHORT).show()
-                        }.onFailure { e ->
-                            Toast.makeText(context, "Ошибка verify: ${e.message}", Toast.LENGTH_SHORT).show()
+                        isVerifying = true
+                        try {
+                            val result = verifyRepo.verify("front_door", token)
+                            result.onSuccess { resp ->
+                                Toast.makeText(context, "VERIFY: ${resp.decision}/${resp.reason}", Toast.LENGTH_SHORT).show()
+                            }.onFailure { e ->
+                                val errorMsg = humanizeNetworkError(e)
+                                Toast.makeText(context, errorMsg, Toast.LENGTH_SHORT).show()
+                            }
+                        } finally {
+                            isVerifying = false
                         }
                     }
                 }
@@ -184,7 +193,16 @@ fun MainScreen(navController: NavController) {
             shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black)
         ) {
-            Text("Verify (front_door)")
+            if (isVerifying) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    color = Color.Black
+                )
+                Spacer(Modifier.width(8.dp))
+                Text("Проверяем…")
+            } else {
+                Text("Verify (front_door)")
+            }
         }
     }
 }
@@ -374,8 +392,17 @@ fun AccSection(flagTheme: Boolean, navController: NavController) {
 
 @Composable
 fun exitAcc(navController: NavController) {
+    val context = LocalContext.current
+    
     Button(
-        onClick = { navController.navigate("loginScreen") },
+        onClick = {
+            TokenProvider.clearToken(context)
+            Toast.makeText(context, "Вы вышли", Toast.LENGTH_SHORT).show()
+            navController.navigate("loginScreen") {
+                popUpTo("mainScreen") { inclusive = true }
+                launchSingleTop = true
+            }
+        },
         modifier = Modifier.fillMaxWidth().padding(16.dp),
         shape = RoundedCornerShape(12.dp),
         colors = ButtonDefaults.buttonColors(colorResource(R.color.exit_button_light_theme))

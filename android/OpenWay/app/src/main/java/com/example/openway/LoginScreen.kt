@@ -13,9 +13,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
@@ -31,8 +33,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
@@ -46,6 +51,7 @@ import androidx.navigation.NavController
 import kotlinx.coroutines.launch
 import com.example.openway.api.ApiFactory
 import com.example.openway.data.AuthRepository
+import com.example.openway.util.humanizeNetworkError
 
 
 @Composable
@@ -66,9 +72,33 @@ fun LoginScreen(navController: NavController) {
     var login by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var errorText by rememberSaveable { mutableStateOf("") }
+    var isLoading by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
     val authRepo = remember { AuthRepository(ApiFactory.authApi) }
+    val canSubmit = !isLoading && login.isNotBlank() && password.isNotBlank()
+
+    // Helper to avoid code duplication between button and IME Done
+    fun submitLogin() {
+        if (!canSubmit) return
+        errorText = ""
+        keyboardController?.hide()
+        scope.launch {
+            isLoading = true
+            try {
+                val res = authRepo.login(context, login, password)
+                res.onSuccess {
+                    navController.navigate("mainScreen")
+                }.onFailure { e ->
+                    errorText = humanizeNetworkError(e)
+                }
+            } finally {
+                isLoading = false
+            }
+        }
+    }
 
     // Состояние показывать ли пароль в виде текста или точками
     var flagPassword by rememberSaveable { mutableStateOf(false) }
@@ -111,6 +141,10 @@ fun LoginScreen(navController: NavController) {
                 keyboardOptions = KeyboardOptions( // натсройка клавиатуры
                     keyboardType = KeyboardType.Text, // обычная клавиатура
                     imeAction = ImeAction.Next        // кнопка "Далее" на клавиатуре
+                ),
+
+                keyboardActions = KeyboardActions(
+                    onNext = { focusManager.moveFocus(FocusDirection.Down) }
                 ),
 
                 textStyle = LocalTextStyle.current.copy( // стиль текста ввода
@@ -165,6 +199,13 @@ fun LoginScreen(navController: NavController) {
                     imeAction = ImeAction.Done // кнопка "Готово" на клавиатуре
                 ),
 
+                keyboardActions = KeyboardActions(
+                    onDone = {
+                        keyboardController?.hide()
+                        submitLogin()
+                    }
+                ),
+
                 textStyle = LocalTextStyle.current.copy( // стиль текста ввода
                     color = Color.White, // цвет
                     fontSize = 16.sp // рахмер
@@ -207,17 +248,8 @@ fun LoginScreen(navController: NavController) {
             Spacer(Modifier.height(20.dp))
 
             Button(
-                onClick = {
-                    errorText = ""
-                    scope.launch {
-                        val res = authRepo.login(context, login, password)
-                        res.onSuccess {
-                            navController.navigate("mainScreen")
-                        }.onFailure { e ->
-                            errorText = e.message ?: "Ошибка авторизации"
-                        }
-                    }
-                },
+                enabled = canSubmit,
+                onClick = { submitLogin() },
                 modifier = Modifier
                     .fillMaxWidth() // кнопка на всю ширину
                     .padding(horizontal = 10.dp, vertical = 5.dp)
@@ -228,7 +260,11 @@ fun LoginScreen(navController: NavController) {
                     contentColor = Color.Black
                 )
             ) {
-                Text("Войти", fontSize = 16.sp) // надпись на кнопке
+                Text(if (isLoading) "Входим…" else "Войти", fontSize = 16.sp)
+            }
+            if (isLoading) {
+                Spacer(Modifier.height(8.dp))
+                CircularProgressIndicator(modifier = Modifier.size(24.dp))
             }
             if (errorText.isNotBlank()) {
                 Spacer(Modifier.height(8.dp))
