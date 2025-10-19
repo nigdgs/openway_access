@@ -2,12 +2,17 @@ from django.conf import settings
 from django.contrib.auth.models import Group
 from django.db import models
 from django.db.models import Q
+from django.utils.translation import gettext_lazy as _
 
 
 class AccessPoint(models.Model):
     code = models.CharField(max_length=64, unique=True)
     name = models.CharField(max_length=128, blank=True)
     location = models.CharField(max_length=128, blank=True)
+
+    class Meta:
+        verbose_name = _("Точка доступа")
+        verbose_name_plural = _("Точки доступа")
 
     def __str__(self):
         return self.code
@@ -19,6 +24,8 @@ class AccessPermission(models.Model):
     allow = models.BooleanField(default=True)
 
     class Meta:
+        verbose_name = _("Право доступа")
+        verbose_name_plural = _("Права доступа")
         unique_together = (("access_point", "user", "group"),)
         constraints = [
             models.CheckConstraint(
@@ -39,3 +46,8 @@ class AccessEvent(models.Model):
     reason = models.CharField(max_length=64, blank=True)
     raw = models.JSONField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("Событие доступа")
+        verbose_name_plural = _("События доступа")
+        ordering = ("-created_at",)
