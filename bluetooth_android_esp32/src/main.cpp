@@ -40,17 +40,25 @@ void blinkRed(uint8_t n=3, uint16_t ms=150){ pinMode(LED_RED,OUTPUT); for(uint8_
 // Wi-Fi по требованию (с коэкзистенцией)
 bool wifiEnsure() {
   if (WiFi.status() == WL_CONNECTED) return true;
-  WiFi.persistent(false);
-  WiFi.mode(WIFI_STA);
+  
+  for (uint8_t attempt = 0; attempt < 3; attempt++) {
+    WiFi.persistent(false);
+    WiFi.mode(WIFI_STA);
 
-  WiFi.setSleep(true);                 // ⬅ обязательно при BLE
-  esp_wifi_set_ps(WIFI_PS_MIN_MODEM);  // ⬅ то же на уровне esp-idf
+    WiFi.setSleep(true);                 // ⬅ обязательно при BLE
+    esp_wifi_set_ps(WIFI_PS_MIN_MODEM);  // ⬅ то же на уровне esp-idf
 
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
-  uint32_t t0 = millis();
-  while (millis() - t0 < 12000) {
-    if (WiFi.status() == WL_CONNECTED) return true;
-    delay(100);
+    WiFi.begin(WIFI_SSID, WIFI_PASS);
+    uint32_t t0 = millis();
+    while (millis() - t0 < 12000) {
+      if (WiFi.status() == WL_CONNECTED) return true;
+      delay(100);
+    }
+    
+    Serial.printf("[WiFi] attempt %u/3 failed\n", attempt + 1);
+    if (attempt < 2) {
+      delay(1000u << attempt);  // 1s, 2s backoff
+    }
   }
   return false;
 }
@@ -60,14 +68,23 @@ void wifiOff() {
 }
 
 // HTTP verify
-bool verifyToken(const String& token) {
-  if (!wifiEnsure()) { Serial.println("[WiFi] connect fail"); return false; }
+bool verifyToken(const String& token, String& err) {
+  if (!wifiEnsure()) {
+    Serial.println("[WiFi] connect fail");
+    err = "Wi-Fi fail";
+    return false;
+  }
 
   String url = String("http://") + BACKEND_HOST + ":" + String(BACKEND_PORT) + VERIFY_PATH;
   String body = String("{\"gate_id\":\"") + GATE_ID + "\",\"token\":\"" + token + "\"}";
 
   HTTPClient http; http.setTimeout(HTTP_TIMEOUT_MS);
-  if (!http.begin(url)) { Serial.println("[HTTP] begin fail"); wifiOff(); return false; }
+  if (!http.begin(url)) {
+    Serial.println("[HTTP] begin fail");
+    err = "HTTP init fail";
+    wifiOff();
+    return false;
+  }
   http.addHeader("Content-Type","application/json");
   int code = http.POST(body);
   String resp = http.getString();
@@ -76,17 +93,27 @@ bool verifyToken(const String& token) {
   Serial.printf("[HTTP] %s -> %d, %s\n", url.c_str(), code, resp.c_str());
   wifiOff(); // освобождаем радио
 
-  return (code==200 && resp.indexOf("\"decision\":\"ALLOW\"")>=0);
+  bool hasAllow = (resp.indexOf("\"decision\":\"ALLOW\"") >= 0);
+  if (code != 200) {
+    err = "HTTP " + String(code);
+    return false;
+  }
+  if (!hasAllow) {
+    err = "Backend DENY";
+    return false;
+  }
+  return true;
 }
 
 class CB : public NimBLECharacteristicCallbacks {
   void onWrite(NimBLECharacteristic* ch) override {
     String token = String(ch->getValue().c_str()); token.trim();
     if (token.isEmpty()) return;
-    Serial.printf("[BLE] token: %s\n", token.c_str());
+    Serial.printf("[BLE] token: %s***\n", token.substring(0,8).c_str());
     oledMsg("VERIFY","Sending...");
 
-    bool allow = verifyToken(token);
+    String err = "";
+    bool allow = verifyToken(token, err);
     if (allow) {
       pinMode(LED_GREEN,OUTPUT); digitalWrite(LED_GREEN,1);
       oledMsg("ALLOW","Gate GATE-01");
@@ -95,7 +122,7 @@ class CB : public NimBLECharacteristicCallbacks {
       oledMsg("READY","Write token");
     } else {
       blinkRed();
-      oledMsg("DENY","Bad token/perm");
+      oledMsg("DENY", err.isEmpty() ? "Bad token" : err);
       delay(1000);
       oledMsg("READY","Write token");
     }
