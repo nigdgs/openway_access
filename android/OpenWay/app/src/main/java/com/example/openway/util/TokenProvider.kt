@@ -9,7 +9,7 @@ object TokenProvider {
     /**
      * Returns the stored auth token or empty string if none.
      * No debug fallback — empty means "not logged in".
-     */
+     **/
     fun getToken(context: Context): String {
         val sp = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         return sp.getString(KEY, "") ?: ""
