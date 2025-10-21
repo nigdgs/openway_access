@@ -40,6 +40,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.openway.ble.BleClient
 import com.example.openway.util.TokenProvider
+import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
 
@@ -220,7 +221,7 @@ fun Content(flagTheme: Boolean, navController: NavController) {
     ) {
         Spacer(Modifier.height(225.dp))
         TextButtonText(flagTheme)
-        Spacer(Modifier.height(275.dp))
+        Spacer(Modifier.height(225.dp))
         AccSection(flagTheme, navController)
     }
 }
@@ -246,9 +247,9 @@ fun TextButtonText(flagTheme: Boolean) {
 
         // Нажатие на большую кнопку -> проверяем пермишены и шлём токен
         BleButton(
-            flagNfcButton = flagBleButton,
+            flagBleButton = flagBleButton,
             flagTheme = flagTheme,
-            onNfcButton = {
+            onBleButton = {
                 flagBleButton = !flagBleButton
                 if (flagBleButton) {
                     act?.sendTokenWithPerms()
@@ -265,43 +266,52 @@ fun TextButtonText(flagTheme: Boolean) {
 }
 
 @Composable
-fun BleButton(flagNfcButton: Boolean, flagTheme: Boolean, onNfcButton: () -> Unit) {
-    val buttonColor by animateColorAsState(
-        targetValue = if (flagNfcButton) {
-            colorResource(id = R.color.nfc_button_on)
-        } else {
-            if (flagTheme) Color.DarkGray else colorResource(id = R.color.light_nfc_button_on)
-        },
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = Spring.StiffnessMediumLow
+    fun BleButton(flagBleButton: Boolean, flagTheme: Boolean, onBleButton: () -> Unit) {
+        val buttonColor by animateColorAsState(
+            targetValue = if (flagBleButton) {
+                colorResource(id = R.color.nfc_button_on)
+            } else {
+                if (flagTheme) Color.DarkGray else colorResource(id = R.color.light_nfc_button_on)
+            },
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioNoBouncy,
+                stiffness = Spring.StiffnessMediumLow
+            )
         )
-    )
 
-    val imageColor by animateColorAsState(
-        targetValue =
-            if (flagNfcButton) if (flagTheme) Color.Black else Color.White
-            else if (flagTheme) Color.White else Color.Black,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = Spring.StiffnessVeryLow
-        )
-    )
 
-    Button(
-        onClick = onNfcButton,
-        modifier = Modifier.size(225.dp),
-        shape = CircleShape,
-        colors = ButtonDefaults.buttonColors(containerColor = buttonColor)
-    ) {
-        Image(
-            painter = painterResource(id = R.drawable.turn_on),
-            contentDescription = null,
-            modifier = Modifier.size(80.dp),
-            colorFilter = ColorFilter.tint(imageColor)
+        LaunchedEffect(flagBleButton) {
+            if (flagBleButton) {
+                delay(3000)  // Задержка 3 секунд
+                onBleButton()
+            }
+        }
+
+
+        val imageColor by animateColorAsState(
+            targetValue =
+                if (flagBleButton) if (flagTheme) Color.Black else Color.White
+                else if (flagTheme) Color.White else Color.Black,
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioNoBouncy,
+                stiffness = Spring.StiffnessVeryLow
+            )
         )
+
+        Button(
+            onClick = onBleButton,
+            modifier = Modifier.size(225.dp),
+            shape = CircleShape,
+            colors = ButtonDefaults.buttonColors(containerColor = buttonColor)
+        ) {
+            Image(
+                painter = painterResource(id = R.drawable.turn_on),
+                contentDescription = null,
+                modifier = Modifier.size(80.dp),
+                colorFilter = ColorFilter.tint(imageColor)
+            )
+        }
     }
-}
 
 /* Остальная часть UI без изменений */
 @Composable
