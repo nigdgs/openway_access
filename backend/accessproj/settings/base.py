@@ -18,8 +18,8 @@ INSTALLED_APPS = [
     "rest_framework.authtoken",
     "drf_spectacular",
     "apps.accounts.apps.AccountsConfig",
-    "apps.devices.apps.DevicesConfig",
-    "apps.access.apps.AccessConfig",
+    "apps.devices",
+    "apps.access",
     "apps.api",
 ]
 
@@ -29,7 +29,6 @@ MIDDLEWARE = [
     "core.middleware.AccessLogMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
-    "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -68,7 +67,7 @@ DATABASES = {
     }
 }
 
-LANGUAGE_CODE = "ru"
+LANGUAGE_CODE = "ru-ru"
 TIME_ZONE = "Europe/Madrid"
 USE_I18N = True
 USE_TZ = True
